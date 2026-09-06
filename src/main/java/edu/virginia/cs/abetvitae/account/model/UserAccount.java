@@ -17,7 +17,13 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "user_account")
+@Table(
+        name = "user_account",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_user_account_email",
+                columnNames = "email"
+        )
+)
 public class UserAccount {
 
     @Id

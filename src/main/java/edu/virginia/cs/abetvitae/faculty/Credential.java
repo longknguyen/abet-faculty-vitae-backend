@@ -12,7 +12,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name="credential")
+@Table(name = "credential")
 public class Credential {
 
     @Id
@@ -22,26 +22,26 @@ public class Credential {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name="professor_id", nullable = false)
+    @JoinColumn(name = "professor_id", nullable = false)
     private Professor professor;
 
     @Enumerated(EnumType.STRING)
-    @Column(name="credential_type",nullable = false, length = 20)
+    @Column(name = "credential_type", nullable = false, length = 20)
     private CredentialType credentialType;
 
-    @Column(name="name", nullable = false, length = 255)
+    @Column(name = "name", nullable = false, length = 255)
     private String name;
 
-    @Column(name="issuing_organisation", nullable = false, length = 100)
+    @Column(name = "issuing_organisation", nullable = true, length = 100)
     private String issuingOrganisation;
 
-    @Column(name="credential_number", nullable = false, length = 200)
+    @Column(name = "credential_number", nullable = true, length = 200)
     private String credentialNumber;
 
-    @Column(name="issue_date", nullable = false)
+    @Column(name = "issue_date", nullable = true)
     private LocalDate issueDate;
 
-    @Column(name="expiration_date", nullable = false)
+    @Column(name = "expiration_date", nullable = true)
     private LocalDate expirationDate;
 
     @Column(name = "display_order", nullable = false)

@@ -1,10 +1,7 @@
 package edu.virginia.cs.abetvitae.faculty;
 
 
-import jakarta.persistence.Column;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,6 +14,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Entity
 @Table(name = "professional_development")
 public class ProfessionalDevelopment {
 
@@ -26,10 +24,11 @@ public class ProfessionalDevelopment {
     @Column
     private UUID id;
 
-    @Column(name = "professor_id", nullable = false)
-    private Professor professorId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name="professor_id", nullable=false)
+    private Professor professor;
 
-    @Column(name = "activity_name", nullable = true, length = 20)
+    @Column(name = "activity_name", nullable = false, length = 20)
     private String activityName;
 
     @Column(name = "provider", nullable = true, length = 255)
@@ -41,7 +40,7 @@ public class ProfessionalDevelopment {
     @Column(name = "end_date", nullable = true)
     private LocalDate endDate;
 
-    @Column(name = "description", nullable = false, length = 500)
+    @Column(name = "description", nullable = true, columnDefinition = "text")
     private String description;
 
     @Column(name = "display_order", nullable = false)

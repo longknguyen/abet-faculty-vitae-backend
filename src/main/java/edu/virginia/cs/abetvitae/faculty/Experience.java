@@ -14,7 +14,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name="experience")
+@Table(name = "experience")
 public class Experience {
 
     @Id
@@ -24,36 +24,36 @@ public class Experience {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name= "professor_id", nullable = false)
+    @JoinColumn(name = "professor_id", nullable = false)
     private Professor professor;
 
     @Enumerated(EnumType.STRING)
-    @Column(name ="experience_type", nullable = false,length=20)
+    @Column(name = "experience_type", nullable = false, length = 20)
     private ExperienceType experienceType;
 
-    @Column(name="organisation", nullable = false,length=255)
+    @Column(name = "organisation", nullable = false, length = 255)
     private String organisation;
 
-    @Column(name="academic_rank", nullable = true,length=100)
+    @Column(name = "academic_rank", nullable = true, length = 100)
     private String academicRank;
 
-    @Column(name="position_title", nullable = true,length=200)
+    @Column(name = "position_title", nullable = false, length = 200)
     private String positionTitle;
 
-    @Column(name="start_year", nullable = false)
+    @Column(name = "start_year", nullable = false)
     private int startYear;
 
-    @Column(name="end_year", nullable = true)
-    private int endYear;
+    @Column(name = "end_year", nullable = true)
+    private Integer endYear;
 
-    @Column(name="is_current")
-    private boolean isCurrent=false;
+    @Column(name = "is_current", nullable = false)
+    private boolean isCurrent = false;
 
     @Enumerated(EnumType.STRING)
-    @Column(name="employment_type",nullable = false)
+    @Column(name = "employment_type", nullable = false, length = 20)
     private EmploymentType employmentType;
 
-    @Column(name="display_order", nullable = false)
+    @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
 }

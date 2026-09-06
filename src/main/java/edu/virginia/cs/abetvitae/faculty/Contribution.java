@@ -23,26 +23,26 @@ public class Contribution {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name="professor_id", nullable = false)
+    @JoinColumn(name = "professor_id", nullable = false)
     private Professor professor;
 
     @Enumerated(EnumType.STRING)
-    @Column(name="contribution_type",nullable = false, length = 20)
+    @Column(name = "contribution_type", nullable = false, length = 20)
     private ContributionType contributionType;
 
-    @Column(name="title", nullable = false, length = 255)
+    @Column(name = "title", nullable = false, length = 255)
     private String title;
 
-    @Column(name="citation", nullable = true, length = 500)
+    @Column(name = "citation", nullable = true, columnDefinition = "text")
     private String citation;
 
-    @Column(name="venue_or_organisation", nullable = true, length = 100)
+    @Column(name = "venue_or_organisation", nullable = true, length = 100)
     private String venueOrOrganisation;
 
-    @Column(name="contribution_date", nullable = true)
+    @Column(name = "contribution_date", nullable = true)
     private LocalDate contributionDate;
 
-    @Column(name="description", nullable = true, length = 500)
+    @Column(name = "description", nullable = true, columnDefinition = "text")
     private String description;
 
     @Column(name = "display_order", nullable = false)
