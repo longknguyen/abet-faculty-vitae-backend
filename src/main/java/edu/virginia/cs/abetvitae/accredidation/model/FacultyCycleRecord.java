@@ -2,7 +2,7 @@ package edu.virginia.cs.abetvitae.accredidation.model;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
-import edu.virginia.cs.abetvitae.faculty.Professor;
+import edu.virginia.cs.abetvitae.faculty.model.Professor;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

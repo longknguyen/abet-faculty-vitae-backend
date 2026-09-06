@@ -1,4 +1,4 @@
-package edu.virginia.cs.abetvitae.faculty;
+package edu.virginia.cs.abetvitae.faculty.model;
 
 public enum ContributionType {
     SERVICE,
