@@ -18,6 +18,14 @@ java {
 
 repositories {
 	mavenCentral()
+	maven {
+		name = 'ShibbolethReleases'
+		url = uri('https://build.shibboleth.net/maven/releases/')
+		content {
+			includeGroupByRegex 'org\\.opensaml.*'
+			includeGroupByRegex 'net\\.shibboleth.*'
+		}
+	}
 }
 
 ext {
@@ -34,6 +42,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.springframework.security:spring-security-saml2-service-provider'
 	implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
 	implementation 'org.springframework.ai:spring-ai-tika-document-reader'
 	compileOnly 'org.projectlombok:lombok'
