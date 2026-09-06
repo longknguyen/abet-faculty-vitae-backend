@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EntityDescriptor
+        xmlns="urn:oasis:names:tc:SAML:2.0:metadata"
+        xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+        entityID="urn:mace:incommon:virginia.edu">
+    <IDPSSODescriptor
+            protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <KeyDescriptor use="signing">
+            <ds:KeyInfo>
+                <ds:X509Data>
+                    <ds:X509Certificate>
+                        MIIDOzCCAiOgAwIBAgIVALIs8V8u06NEcoiPKqBdTWQ5F3WdMA0GCSqGSIb3DQEB
+                        BQUAMCMxITAfBgNVBAMTGHNoaWJpZHAuaXRzLnZpcmdpbmlhLmVkdTAeFw0xMjAz
+                        MDIxNTI2MDNaFw0zMjAzMDIxNTI2MDNaMCMxITAfBgNVBAMTGHNoaWJpZHAuaXRz
+                        LnZpcmdpbmlhLmVkdTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMz9
+                        8k0PGFjm33ceTUVhpw4fWO+oknxcOTL8o+nsnD3jiaF7KIBWs70+M9Ddkl8ih/os
+                        rXCPzBhmB/ttNgaKGczqGKCq+o1+cjBgrHzxfUOQAr6ne6ZyZgN0VbRNvkNDB9Te
+                        Gf9BAlByFcLbrM9xYfu5z79deO9m/M5q6FbD5QMY1qN8A5oJhi1IPZo5GuFCoUJz
+                        mWGRXSujZQHBFr5T+euyMxnC3Gr+yJhP5plm9tET5VEf/tCWmeeWam84e1u9LP2n
+                        bFYpusfGZ9lA/JgoYOdYTb5gcHb53yIzLxUF/KaUQACMqbIXZxpvg+7qpLZkBJIX
+                        G/Qipg5ProkW7GqyzrcCAwEAAaNmMGQwQwYDVR0RBDwwOoIYc2hpYmlkcC5pdHMu
+                        dmlyZ2luaWEuZWR1hh51cm46bWFjZTppbmNvbW1vbjp2aXJnaW5pYS5lZHUwHQYD
+                        VR0OBBYEFJe4yrDCKYu70HZV9azIdbPqM9KHMA0GCSqGSIb3DQEBBQUAA4IBAQB8
+                        G07ktM6zaMsydtat8FUHbQsDqMu51vJAg8DTHD63SoJSG/NFar8BNZH0DDb33Zyy
+                        4KXfVGzE5Jtg5cb/5eRLah42FtkfvXnSMKgn8jAx77jG3kD/okm0iCKP6RRS7L7Q
+                        l3CESXZORAXC50pPjoacANRdAl729CszcW65zUhoKBV37plZq5uRc7FTtjJujEOL
+                        0wsZTq9SmdmHtH3E+XabESqWp43vuMTNS2XPBQPIQUyuCldZN+N6jLkOGQI104P3
+                        3FljH7rKPo43+7MT2XZGS2J+PcALgUfSxewXei0RQNXWXN3l0qXupwsWM8kO6mSA
+                        zZQUr9YEODP0DFBKKGSo
+                    </ds:X509Certificate>
+                </ds:X509Data>
+            </ds:KeyInfo>
+        </KeyDescriptor>
+        <SingleSignOnService
+                Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                Location="https://shibidp.its.virginia.edu/idp/profile/SAML2/Redirect/SSO"/>
+    </IDPSSODescriptor>
+</EntityDescriptor>
