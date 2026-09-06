@@ -1,5 +1,8 @@
 plugins {
 	id 'java'
+	id 'checkstyle'
+	id 'jacoco'
+	id 'com.github.spotbugs' version '6.5.11'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -64,6 +67,25 @@ dependencyManagement {
 	}
 }
 
+checkstyle {
+	toolVersion = '13.9.0'
+	maxWarnings = 0
+}
+
+jacoco {
+	toolVersion = '0.8.15'
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy tasks.named('jacocoTestReport')
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true
+		html.required = true
+		csv.required = false
+	}
 }
