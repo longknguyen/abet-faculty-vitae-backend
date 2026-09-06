@@ -1,4 +1,4 @@
-package edu.virginia.cs.abetvitae.account.faculty;
+package edu.virginia.cs.abetvitae.faculty;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
