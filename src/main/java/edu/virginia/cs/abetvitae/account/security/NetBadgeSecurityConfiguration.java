@@ -1,6 +1,5 @@
 package edu.virginia.cs.abetvitae.account.security;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -22,12 +21,10 @@ public class NetBadgeSecurityConfiguration {
 
     @Bean
     RelyingPartyRegistrationRepository netBadgeRelyingPartyRegistrationRepository(
-            @Value("${app.netbadge.base-url}") String baseUrl,
-            @Value("${app.netbadge.idp-metadata-uri}") String idpMetadataUri
-    ) {
-        String normalisedBaseUrl = removeTrailingSlash(baseUrl);
+            NetBadgeProperties properties) {
+        String normalisedBaseUrl = properties.normalisedBaseUrl();
         RelyingPartyRegistration registration = RelyingPartyRegistrations
-                .fromMetadataLocation(idpMetadataUri)
+                .fromMetadataLocation(properties.idpMetadataUri())
                 .registrationId(REGISTRATION_ID)
                 .entityId(normalisedBaseUrl + METADATA_PATH)
                 .assertionConsumerServiceLocation(
@@ -56,9 +53,5 @@ public class NetBadgeSecurityConfiguration {
                 .saml2Metadata(Customizer.withDefaults());
 
         return http.build();
-    }
-
-    private static String removeTrailingSlash(String value) {
-        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 }
