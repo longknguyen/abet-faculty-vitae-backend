@@ -1,4 +1,4 @@
-package edu.virginia.cs.abetvitae.accredidation.model;
+package edu.virginia.cs.abetvitae.accreditation.model;
 
 public enum FacultyCycleStatus {
     DRAFT,
