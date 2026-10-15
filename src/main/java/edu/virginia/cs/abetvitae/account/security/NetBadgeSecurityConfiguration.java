@@ -49,8 +49,7 @@ public class NetBadgeSecurityConfiguration {
                         .anyRequest()
                         .authenticated()
                 )
-                .saml2Login(saml2 -> saml2
-                        .defaultSuccessUrl("/api/auth/session", false))
+                .saml2Login(Customizer.withDefaults())
                 .saml2Metadata(Customizer.withDefaults());
 
         return http.build();
