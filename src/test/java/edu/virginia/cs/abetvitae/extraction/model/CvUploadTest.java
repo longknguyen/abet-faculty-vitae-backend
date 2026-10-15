@@ -1,7 +1,7 @@
 package edu.virginia.cs.abetvitae.extraction.model;
 
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
-import edu.virginia.cs.abetvitae.accredidation.model.FacultyCycleRecord;
+import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

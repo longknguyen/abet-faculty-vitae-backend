@@ -1,1 +1,3 @@
 rootProject.name = 'abet-faculty-vitae-backend'
+
+include 'parser-contract', 'parser-worker'

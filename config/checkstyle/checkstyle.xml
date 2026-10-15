@@ -13,6 +13,7 @@
             <property name="illegalClasses"
                       value="javax.persistence.Id,org.springframework.data.annotation.Id"/>
         </module>
+        <module name="AvoidStarImport"/>
         <module name="RedundantImport"/>
         <module name="UnusedImports"/>
         <module name="EmptyCatchBlock">

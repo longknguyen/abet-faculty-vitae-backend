@@ -47,4 +47,24 @@ class NetBadgeMetadataEndpointTest {
                 .contains("Location=\"https://faculty-vitae.example.edu"
                         + "/login/saml2/sso/netbadge\"");
     }
+
+    @Test
+    void permitsSessionCookieOnNetBadgePostCallback() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port
+                        + "/saml2/authenticate/netbadge"))
+                .GET()
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertThat(response.statusCode()).isBetween(200, 399);
+        assertThat(response.headers().allValues("set-cookie"))
+                .anySatisfy(cookie -> assertThat(cookie)
+                        .contains("Secure")
+                        .contains("HttpOnly")
+                        .contains("SameSite=None"));
+    }
 }

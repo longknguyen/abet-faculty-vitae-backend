@@ -1,0 +1,47 @@
+plugins {
+	id 'java'
+	id 'checkstyle'
+	id 'com.github.spotbugs' version '6.5.11'
+	id 'org.springframework.boot' version '4.1.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'edu.virginia.cs'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('tikaVersion', "3.3.2")
+}
+
+dependencies {
+	implementation project(':parser-contract')
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation "org.apache.tika:tika-core:${tikaVersion}"
+	implementation "org.apache.tika:tika-parser-pdf-module:${tikaVersion}"
+	implementation "org.apache.tika:tika-parser-microsoft-module:${tikaVersion}"
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+checkstyle {
+	toolVersion = '13.9.0'
+	configDirectory = rootProject.file('config/checkstyle')
+	maxWarnings = 0
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

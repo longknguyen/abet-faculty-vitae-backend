@@ -1,0 +1,24 @@
+plugins {
+	id 'java-library'
+	id 'checkstyle'
+	id 'com.github.spotbugs' version '6.5.11'
+}
+
+group = 'edu.virginia.cs'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+checkstyle {
+	toolVersion = '13.9.0'
+	configDirectory = rootProject.file('config/checkstyle')
+	maxWarnings = 0
+}
