@@ -115,4 +115,19 @@ class NetBadgeMetadataEndpointTest {
         assertThat(response.headers().firstValue("access-control-allow-credentials"))
                 .contains("true");
     }
+
+    @Test
+    void returnsUnauthorizedInsteadOfSamlHtmlForUnauthenticatedApiRequest() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/home"))
+                .GET()
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.headers().firstValue("location")).isEmpty();
+    }
 }
