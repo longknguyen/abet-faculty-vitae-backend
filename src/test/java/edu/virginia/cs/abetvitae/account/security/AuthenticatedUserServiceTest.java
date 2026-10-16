@@ -42,8 +42,8 @@ class AuthenticatedUserServiceTest {
                 "displayName",
                 "sn",
                 "isMemberOf",
-                "ABET-Vitae-Admin",
-                "ABET-Vitae-Faculty");
+                "groups:personal:nb3f:ABET-Vitae-Admin",
+                "groups:auto:ABET-Vitae-Faculty");
         service = new AuthenticatedUserService(
                 userAccountRepository,
                 attributeProperties,
@@ -73,7 +73,7 @@ class AuthenticatedUserServiceTest {
         when(assertion.getFirstAttribute("displayName")).thenReturn("Alex Morgan");
         when(assertion.getFirstAttribute("sn")).thenReturn("Morgan");
         when(assertion.<String>getAttribute("isMemberOf"))
-                .thenReturn(List.of("ABET-Vitae-Faculty"));
+                .thenReturn(List.of("groups:auto:ABET-Vitae-Faculty"));
         when(userAccountRepository.findByExternalSubject("abc1de"))
                 .thenReturn(Optional.empty());
         when(userAccountRepository.findByEmailIgnoreCase("faculty@virginia.edu"))

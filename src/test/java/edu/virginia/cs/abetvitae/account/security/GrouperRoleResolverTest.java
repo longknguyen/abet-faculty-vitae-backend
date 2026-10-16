@@ -23,8 +23,8 @@ class GrouperRoleResolverTest {
                 "displayName",
                 "sn",
                 "isMemberOf",
-                "ABET-Vitae-Admin",
-                "ABET-Vitae-Faculty");
+                "groups:personal:nb3f:ABET-Vitae-Admin",
+                "groups:auto:ABET-Vitae-Faculty");
         resolver = new GrouperRoleResolver(properties);
     }
 
@@ -33,8 +33,8 @@ class GrouperRoleResolverTest {
         Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
         when(assertion.<String>getAttribute("isMemberOf")).thenReturn(List.of(
                 "unrelated-group",
-                "ABET-Vitae-Admin",
-                "ABET-Vitae-Faculty"));
+                "groups:personal:nb3f:ABET-Vitae-Admin",
+                "groups:auto:ABET-Vitae-Faculty"));
 
         assertThat(resolver.resolve(assertion))
                 .containsExactlyInAnyOrder(RoleName.ADMIN, RoleName.FACULTY);
