@@ -40,7 +40,7 @@ class AuthenticatedUserServiceTest {
                 "urn:oid:0.9.2342.19200300.100.1.1",
                 "urn:oid:0.9.2342.19200300.100.1.3",
                 "urn:oid:2.16.840.1.113730.3.1.241",
-                "sn",
+                "urn:oid:2.5.4.4",
                 "urn:oid:1.3.6.1.4.1.5923.1.5.1.1",
                 "cn=ABET-Vitae-Admin,ou=Personal,ou=Groups,o=University of Virginia,c=US",
                 "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,o=University of Virginia,c=US");
@@ -74,7 +74,7 @@ class AuthenticatedUserServiceTest {
                 .thenReturn("faculty@virginia.edu");
         when(assertion.getFirstAttribute("urn:oid:2.16.840.1.113730.3.1.241"))
                 .thenReturn("Alex Morgan");
-        when(assertion.getFirstAttribute("sn")).thenReturn("Morgan");
+        when(assertion.getFirstAttribute("urn:oid:2.5.4.4")).thenReturn("Morgan");
         when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
                 .thenReturn(List.of(
                         "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,"
