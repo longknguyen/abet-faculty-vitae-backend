@@ -46,9 +46,6 @@ public class UserAccount {
     @Column(nullable = false, length = 320)
     private String email;
 
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
-
     @Column(name = "external_subject", length = 255, unique = true)
     private String externalSubject;
 
