@@ -26,10 +26,8 @@ import edu.virginia.cs.abetvitae.review.repository.ExtractionReviewItemRepositor
 import edu.virginia.cs.abetvitae.review.repository.ExtractionReviewRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,27 +54,28 @@ public class HomeService {
 
     @Transactional(readOnly = true)
     public HomeResponse loadHome(AuthenticatedUser user) {
-        AbetTemplate template = currentTemplate();
+        Optional<AbetTemplate> template = currentTemplate();
         Optional<Professor> professor = professorRepository.findByUserAccountId(user.accountId());
-        FacultyCycleRecord personalRecord = personalRecord(user, professor, template);
+        FacultyCycleRecord personalRecord = template
+                .map(value -> personalRecord(user, professor, value))
+                .orElse(null);
 
         return new HomeResponse(
                 currentUser(user, professor),
-                new HomeResponse.Cycle(
-                        template.getId(),
-                        template.getReviewCycle(),
-                        template.getDepartmentName()),
+                template.map(value -> new HomeResponse.Cycle(
+                        value.getId(),
+                        value.getReviewCycle(),
+                        value.getDepartmentName())).orElse(null),
                 personalRecord == null ? null : personalVitae(personalRecord),
-                user.hasRole(RoleName.ADMIN) ? facultyRecords(template) : List.of());
+                user.hasRole(RoleName.ADMIN) && template.isPresent()
+                        ? facultyRecords(template.orElseThrow())
+                        : List.of());
     }
 
-    private AbetTemplate currentTemplate() {
+    private Optional<AbetTemplate> currentTemplate() {
         return abetTemplateRepository
                 .findFirstByStatusOrderByPublishedAtDescRevisionNumberDesc(
-                        AbetTemplateStatus.PUBLISHED)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.SERVICE_UNAVAILABLE,
-                        "No published ABET template is configured"));
+                        AbetTemplateStatus.PUBLISHED);
     }
 
     private FacultyCycleRecord personalRecord(
@@ -86,9 +85,10 @@ public class HomeService {
         if (!user.hasRole(RoleName.FACULTY)) {
             return null;
         }
-        Professor linkedProfessor = professor.orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "The faculty account is not linked to a professor record"));
+        if (professor.isEmpty()) {
+            return null;
+        }
+        Professor linkedProfessor = professor.orElseThrow();
         return facultyCycleRecordRepository
                 .findByProfessorIdAndAbetTemplateId(linkedProfessor.getId(), template.getId())
                 .orElse(null);

@@ -59,8 +59,6 @@ class HomeServiceTest {
     private ExtractionReviewItemRepository extractionReviewItemRepository;
 
     private HomeService service;
-    private AbetTemplate template;
-    private Professor professor;
 
     @BeforeEach
     void setUp() {
@@ -74,18 +72,18 @@ class HomeServiceTest {
                 processingJobRepository,
                 extractionReviewRepository,
                 extractionReviewItemRepository);
-        template = template();
-        professor = professor();
+    }
+
+    @Test
+    void returnsFirstTimeFacultyHomeWithoutCreatingARecord() {
+        AbetTemplate template = template();
+        Professor professor = professor();
         when(abetTemplateRepository
                 .findFirstByStatusOrderByPublishedAtDescRevisionNumberDesc(
                         AbetTemplateStatus.PUBLISHED))
                 .thenReturn(Optional.of(template));
         when(professorRepository.findByUserAccountId(ACCOUNT_ID))
                 .thenReturn(Optional.of(professor));
-    }
-
-    @Test
-    void returnsFirstTimeFacultyHomeWithoutCreatingARecord() {
         when(facultyCycleRecordRepository.findByProfessorIdAndAbetTemplateId(
                 PROFESSOR_ID,
                 TEMPLATE_ID)).thenReturn(Optional.empty());
@@ -94,6 +92,22 @@ class HomeServiceTest {
 
         assertThat(response.cycle().label()).isEqualTo("2026–27");
         assertThat(response.cycle().departmentName()).isEqualTo("Computer Science");
+        assertThat(response.personalVitae()).isNull();
+        assertThat(response.facultyRecords()).isEmpty();
+    }
+
+    @Test
+    void returnsAnEmptyHomeWhenNoReviewCycleIsConfigured() {
+        when(abetTemplateRepository
+                .findFirstByStatusOrderByPublishedAtDescRevisionNumberDesc(
+                        AbetTemplateStatus.PUBLISHED))
+                .thenReturn(Optional.empty());
+        when(professorRepository.findByUserAccountId(ACCOUNT_ID))
+                .thenReturn(Optional.empty());
+
+        HomeResponse response = service.loadHome(facultyUser());
+
+        assertThat(response.cycle()).isNull();
         assertThat(response.personalVitae()).isNull();
         assertThat(response.facultyRecords()).isEmpty();
     }
