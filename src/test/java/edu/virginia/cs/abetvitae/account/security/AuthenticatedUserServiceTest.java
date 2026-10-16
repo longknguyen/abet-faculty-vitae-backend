@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
 import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 import java.util.Set;
@@ -17,6 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -72,5 +75,18 @@ class AuthenticatedUserServiceTest {
         assertThat(user.displayName()).isEqualTo("Alex Morgan");
         assertThat(user.surname()).isEqualTo("Morgan");
         assertThat(user.roles()).containsExactly(RoleName.FACULTY);
+    }
+
+    @Test
+    void rejectsSamlAuthenticationWithoutAnAssertion() {
+        Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getCredentials()).thenReturn(null);
+
+        assertThatThrownBy(() -> service.requireUser(authentication))
+                .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(exception.getReason()).isEqualTo("The SAML assertion is missing");
+                });
     }
 }

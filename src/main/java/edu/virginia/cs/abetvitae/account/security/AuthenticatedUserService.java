@@ -76,6 +76,11 @@ public class AuthenticatedUserService {
     private PrincipalAttributes attributes(Authentication authentication) {
         if (authentication instanceof Saml2AssertionAuthentication samlAuthentication) {
             Saml2ResponseAssertionAccessor assertion = samlAuthentication.getCredentials();
+            if (assertion == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "The SAML assertion is missing");
+            }
             String email = requiredAttribute(assertion, attributeProperties.emailAttribute());
             return new PrincipalAttributes(
                     blankToNull(assertion.getFirstAttribute(attributeProperties.subjectAttribute())),
