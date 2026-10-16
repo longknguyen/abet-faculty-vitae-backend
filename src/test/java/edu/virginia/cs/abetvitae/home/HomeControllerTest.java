@@ -59,7 +59,7 @@ class HomeControllerTest {
         when(authenticatedUserService.requireUser(authentication)).thenReturn(user);
         when(homeService.loadHome(user)).thenReturn(response);
 
-        mockMvc.perform(get("/api/v1/home").principal(authentication))
+        mockMvc.perform(get("/api/home").principal(authentication))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentUser.id").value(accountId.toString()))
                 .andExpect(jsonPath("$.currentUser.roles[0]").value("FACULTY"))
