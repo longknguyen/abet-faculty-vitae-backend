@@ -10,7 +10,8 @@ import org.springframework.context.annotation.Profile;
 public record NetBadgeProperties(
         String baseUrl,
         String idpMetadataUri,
-        String frontendBaseUrl) {
+        String frontendBaseUrl,
+        String assertionConsumerServiceBaseUrl) {
 
     public NetBadgeProperties {
         if (baseUrl == null || baseUrl.isBlank()) {
@@ -22,9 +23,15 @@ public record NetBadgeProperties(
         if (frontendBaseUrl == null || frontendBaseUrl.isBlank()) {
             throw new IllegalArgumentException("The frontend base URL is required");
         }
+        if (assertionConsumerServiceBaseUrl == null
+                || assertionConsumerServiceBaseUrl.isBlank()) {
+            throw new IllegalArgumentException(
+                    "The assertion consumer service base URL is required");
+        }
 
         validateBaseUrl(baseUrl, "NetBadge application");
         validateBaseUrl(frontendBaseUrl, "frontend");
+        validateBaseUrl(assertionConsumerServiceBaseUrl, "assertion consumer service");
     }
 
     String normalisedBaseUrl() {
@@ -35,6 +42,14 @@ public record NetBadgeProperties(
         return frontendBaseUrl.endsWith("/")
                 ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
                 : frontendBaseUrl;
+    }
+
+    String normalisedAssertionConsumerServiceBaseUrl() {
+        return assertionConsumerServiceBaseUrl.endsWith("/")
+                ? assertionConsumerServiceBaseUrl.substring(
+                        0,
+                        assertionConsumerServiceBaseUrl.length() - 1)
+                : assertionConsumerServiceBaseUrl;
     }
 
     private static void validateBaseUrl(String value, String label) {

@@ -26,6 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
             "app.netbadge.base-url=https://faculty-vitae.example.edu/",
             "app.netbadge.idp-metadata-uri=classpath:saml/test-idp-metadata.xml",
             "app.netbadge.frontend-base-url=https://faculty-vitae-frontend.example.edu/",
+            "app.netbadge.assertion-consumer-service-base-url="
+                    + "https://faculty-vitae-frontend.example.edu/",
             "testcontainers.ollama.enabled=false",
             "testcontainers.rabbitmq.enabled=false"
         }
@@ -53,7 +55,7 @@ class NetBadgeMetadataEndpointTest {
         assertThat(response.body())
                 .contains("entityID=\"https://faculty-vitae.example.edu"
                         + "/saml2/service-provider-metadata/netbadge\"")
-                .contains("Location=\"https://faculty-vitae.example.edu"
+                .contains("Location=\"https://faculty-vitae-frontend.example.edu"
                         + "/login/saml2/sso/netbadge\"");
     }
 
