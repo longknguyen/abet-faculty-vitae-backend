@@ -1,5 +1,6 @@
 package edu.virginia.cs.abetvitae.account.security;
 
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -10,6 +11,11 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration(proxyBeanMethods = false)
 @Profile("netbadge")
@@ -36,8 +42,37 @@ public class NetBadgeSecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain netBadgeSecurityFilterChain(HttpSecurity http) throws Exception {
+    AuthenticationSuccessHandler netBadgeAuthenticationSuccessHandler(
+            NetBadgeProperties properties) {
+        SimpleUrlAuthenticationSuccessHandler successHandler =
+                new SimpleUrlAuthenticationSuccessHandler(
+                        properties.normalisedFrontendBaseUrl());
+        successHandler.setAlwaysUseDefaultTargetUrl(true);
+        return successHandler;
+    }
+
+    @Bean
+    CorsConfigurationSource netBadgeCorsConfigurationSource(NetBadgeProperties properties) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of(properties.normalisedFrontendBaseUrl()));
+        configuration.setAllowedMethods(List.of("GET", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Accept", "Content-Type", "X-XSRF-TOKEN"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
+    }
+
+    @Bean
+    SecurityFilterChain netBadgeSecurityFilterChain(
+            HttpSecurity http,
+            AuthenticationSuccessHandler netBadgeAuthenticationSuccessHandler,
+            CorsConfigurationSource netBadgeCorsConfigurationSource)
+            throws Exception {
         http
+                .cors(cors -> cors.configurationSource(netBadgeCorsConfigurationSource))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/actuator/health",
@@ -49,7 +84,8 @@ public class NetBadgeSecurityConfiguration {
                         .anyRequest()
                         .authenticated()
                 )
-                .saml2Login(Customizer.withDefaults())
+                .saml2Login(saml -> saml
+                        .successHandler(netBadgeAuthenticationSuccessHandler))
                 .saml2Metadata(Customizer.withDefaults());
 
         return http.build();

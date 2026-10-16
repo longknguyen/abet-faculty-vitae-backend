@@ -1,9 +1,14 @@
 package edu.virginia.cs.abetvitae;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.net.URI;
@@ -20,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         properties = {
             "app.netbadge.base-url=https://faculty-vitae.example.edu/",
             "app.netbadge.idp-metadata-uri=classpath:saml/test-idp-metadata.xml",
+            "app.netbadge.frontend-base-url=https://faculty-vitae-frontend.example.edu/",
             "testcontainers.ollama.enabled=false",
             "testcontainers.rabbitmq.enabled=false"
         }
@@ -28,6 +34,9 @@ class NetBadgeMetadataEndpointTest {
 
     @LocalServerPort
     private int port;
+
+    @Autowired
+    private AuthenticationSuccessHandler netBadgeAuthenticationSuccessHandler;
 
     @Test
     void publishesServiceProviderMetadataWithoutAuthentication() throws Exception {
@@ -66,5 +75,42 @@ class NetBadgeMetadataEndpointTest {
                         .contains("Secure")
                         .contains("HttpOnly")
                         .contains("SameSite=None"));
+    }
+
+    @Test
+    void redirectsSuccessfulAuthenticationToConfiguredFrontend() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        TestingAuthenticationToken authentication = new TestingAuthenticationToken(
+                "test-user",
+                null);
+
+        netBadgeAuthenticationSuccessHandler.onAuthenticationSuccess(
+                request,
+                response,
+                authentication);
+
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("https://faculty-vitae-frontend.example.edu");
+    }
+
+    @Test
+    void permitsCredentialedHomeRequestsFromConfiguredFrontend() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/home"))
+                .header("Origin", "https://faculty-vitae-frontend.example.edu")
+                .header("Access-Control-Request-Method", "GET")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("access-control-allow-origin"))
+                .contains("https://faculty-vitae-frontend.example.edu");
+        assertThat(response.headers().firstValue("access-control-allow-credentials"))
+                .contains("true");
     }
 }
