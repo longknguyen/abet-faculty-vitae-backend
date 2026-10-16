@@ -14,7 +14,7 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2R
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,12 +32,22 @@ class AuthenticatedUserServiceTest {
     private UserAccountRepository userAccountRepository;
 
     private AuthenticatedUserService service;
+    private IdentityAttributeProperties attributeProperties;
 
     @BeforeEach
     void setUp() {
+        attributeProperties = new IdentityAttributeProperties(
+                "uid",
+                "mail",
+                "displayName",
+                "sn",
+                "isMemberOf",
+                "ABET-Vitae-Admin",
+                "ABET-Vitae-Faculty");
         service = new AuthenticatedUserService(
                 userAccountRepository,
-                new IdentityAttributeProperties("uid", "mail", "displayName", "sn"));
+                attributeProperties,
+                new GrouperRoleResolver(attributeProperties));
     }
 
     @Test
@@ -51,7 +61,6 @@ class AuthenticatedUserServiceTest {
         when(account.getId()).thenReturn(accountId);
         when(account.getEmail()).thenReturn("faculty@virginia.edu");
         when(account.isEnabled()).thenReturn(true);
-        when(account.getRoles()).thenReturn(Set.of(RoleName.FACULTY));
         when(account.getExternalSubject()).thenAnswer(ignored -> externalSubject.get());
         doAnswer(invocation -> {
             externalSubject.set(invocation.getArgument(0));
@@ -63,6 +72,8 @@ class AuthenticatedUserServiceTest {
         when(assertion.getFirstAttribute("mail")).thenReturn("faculty@virginia.edu");
         when(assertion.getFirstAttribute("displayName")).thenReturn("Alex Morgan");
         when(assertion.getFirstAttribute("sn")).thenReturn("Morgan");
+        when(assertion.<String>getAttribute("isMemberOf"))
+                .thenReturn(List.of("ABET-Vitae-Faculty"));
         when(userAccountRepository.findByExternalSubject("abc1de"))
                 .thenReturn(Optional.empty());
         when(userAccountRepository.findByEmailIgnoreCase("faculty@virginia.edu"))
@@ -75,6 +86,30 @@ class AuthenticatedUserServiceTest {
         assertThat(user.displayName()).isEqualTo("Alex Morgan");
         assertThat(user.surname()).isEqualTo("Morgan");
         assertThat(user.roles()).containsExactly(RoleName.FACULTY);
+    }
+
+    @Test
+    void rejectsAccountWithoutAnAuthorisedGrouperMembership() {
+        UserAccount account = mock(UserAccount.class);
+        Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
+        Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
+
+        when(account.isEnabled()).thenReturn(true);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getCredentials()).thenReturn(assertion);
+        when(assertion.getFirstAttribute("uid")).thenReturn("abc1de");
+        when(assertion.getFirstAttribute("mail")).thenReturn("faculty@virginia.edu");
+        when(assertion.<String>getAttribute("isMemberOf"))
+                .thenReturn(List.of("unrelated-group"));
+        when(userAccountRepository.findByExternalSubject("abc1de"))
+                .thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.requireUser(authentication))
+                .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(exception.getReason()).isEqualTo(
+                            "The authenticated identity is not a member of an authorised Grouper group");
+                });
     }
 
     @Test

@@ -1,5 +1,6 @@
 package edu.virginia.cs.abetvitae.account.security;
 
+import edu.virginia.cs.abetvitae.account.model.RoleName;
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
 import edu.virginia.cs.abetvitae.account.repository.UserAccountRepository;
 import lombok.AccessLevel;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
+import java.util.Set;
 
 /** Resolves a NetBadge principal to a pre-authorised local application account. */
 @Service
@@ -21,6 +23,7 @@ public class AuthenticatedUserService {
 
     private final UserAccountRepository userAccountRepository;
     private final IdentityAttributeProperties attributeProperties;
+    private final GrouperRoleResolver grouperRoleResolver;
 
     @Transactional
     public AuthenticatedUser requireUser(Authentication authentication) {
@@ -34,10 +37,15 @@ public class AuthenticatedUserService {
                         HttpStatus.FORBIDDEN,
                         "The authenticated identity is not authorised for this application"));
 
-        if (!account.isEnabled() || account.getRoles().isEmpty()) {
+        if (!account.isEnabled()) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "The application account is disabled or has no assigned role");
+                    "The application account is disabled");
+        }
+        if (attributes.roles().isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "The authenticated identity is not a member of an authorised Grouper group");
         }
 
         bindExternalSubject(account, attributes.externalSubject());
@@ -46,7 +54,7 @@ public class AuthenticatedUserService {
                 account.getId(),
                 displayName,
                 blankToNull(attributes.surname()),
-                account.getRoles());
+                attributes.roles());
     }
 
     private Optional<UserAccount> findAccount(PrincipalAttributes attributes) {
@@ -88,7 +96,8 @@ public class AuthenticatedUserService {
                     blankToNull(assertion.getFirstAttribute(
                             attributeProperties.displayNameAttribute())),
                     blankToNull(assertion.getFirstAttribute(
-                            attributeProperties.surnameAttribute())));
+                            attributeProperties.surnameAttribute())),
+                    grouperRoleResolver.resolve(assertion));
         }
 
         String email = authentication.getName();
@@ -97,7 +106,7 @@ public class AuthenticatedUserService {
                     HttpStatus.FORBIDDEN,
                     "The authenticated identity did not supply an email address");
         }
-        return new PrincipalAttributes(null, email, null, null);
+        return new PrincipalAttributes(null, email, null, null, Set.of());
     }
 
     private static String requiredAttribute(
@@ -128,6 +137,7 @@ public class AuthenticatedUserService {
             String externalSubject,
             String email,
             String displayName,
-            String surname) {
+            String surname,
+            Set<RoleName> roles) {
     }
 }
