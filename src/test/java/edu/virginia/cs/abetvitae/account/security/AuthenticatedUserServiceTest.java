@@ -37,13 +37,13 @@ class AuthenticatedUserServiceTest {
     @BeforeEach
     void setUp() {
         attributeProperties = new IdentityAttributeProperties(
-                "uid",
-                "mail",
-                "displayName",
+                "urn:oid:0.9.2342.19200300.100.1.1",
+                "urn:oid:0.9.2342.19200300.100.1.3",
+                "urn:oid:2.16.840.1.113730.3.1.241",
                 "sn",
-                "isMemberOf",
-                "groups:personal:nb3f:ABET-Vitae-Admin",
-                "groups:auto:ABET-Vitae-Faculty");
+                "urn:oid:1.3.6.1.4.1.5923.1.5.1.1",
+                "ABET-Vitae-Admin",
+                "ABET-Vitae-Faculty");
         service = new AuthenticatedUserService(
                 userAccountRepository,
                 attributeProperties,
@@ -68,12 +68,15 @@ class AuthenticatedUserServiceTest {
         }).when(account).setExternalSubject(anyString());
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getCredentials()).thenReturn(assertion);
-        when(assertion.getFirstAttribute("uid")).thenReturn("abc1de");
-        when(assertion.getFirstAttribute("mail")).thenReturn("faculty@virginia.edu");
-        when(assertion.getFirstAttribute("displayName")).thenReturn("Alex Morgan");
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.1"))
+                .thenReturn("abc1de");
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.3"))
+                .thenReturn("faculty@virginia.edu");
+        when(assertion.getFirstAttribute("urn:oid:2.16.840.1.113730.3.1.241"))
+                .thenReturn("Alex Morgan");
         when(assertion.getFirstAttribute("sn")).thenReturn("Morgan");
-        when(assertion.<String>getAttribute("isMemberOf"))
-                .thenReturn(List.of("groups:auto:ABET-Vitae-Faculty"));
+        when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
+                .thenReturn(List.of("ABET-Vitae-Faculty"));
         when(userAccountRepository.findByExternalSubject("abc1de"))
                 .thenReturn(Optional.empty());
         when(userAccountRepository.findByEmailIgnoreCase("faculty@virginia.edu"))
@@ -97,9 +100,11 @@ class AuthenticatedUserServiceTest {
         when(account.isEnabled()).thenReturn(true);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getCredentials()).thenReturn(assertion);
-        when(assertion.getFirstAttribute("uid")).thenReturn("abc1de");
-        when(assertion.getFirstAttribute("mail")).thenReturn("faculty@virginia.edu");
-        when(assertion.<String>getAttribute("isMemberOf"))
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.1"))
+                .thenReturn("abc1de");
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.3"))
+                .thenReturn("faculty@virginia.edu");
+        when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
                 .thenReturn(List.of("unrelated-group"));
         when(userAccountRepository.findByExternalSubject("abc1de"))
                 .thenReturn(Optional.of(account));

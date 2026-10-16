@@ -18,23 +18,24 @@ class GrouperRoleResolverTest {
     @BeforeEach
     void setUp() {
         IdentityAttributeProperties properties = new IdentityAttributeProperties(
-                "uid",
-                "mail",
-                "displayName",
+                "urn:oid:0.9.2342.19200300.100.1.1",
+                "urn:oid:0.9.2342.19200300.100.1.3",
+                "urn:oid:2.16.840.1.113730.3.1.241",
                 "sn",
-                "isMemberOf",
-                "groups:personal:nb3f:ABET-Vitae-Admin",
-                "groups:auto:ABET-Vitae-Faculty");
+                "urn:oid:1.3.6.1.4.1.5923.1.5.1.1",
+                "ABET-Vitae-Admin",
+                "ABET-Vitae-Faculty");
         resolver = new GrouperRoleResolver(properties);
     }
 
     @Test
     void mapsBothConfiguredGroupsAndIgnoresUnrelatedGroups() {
         Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
-        when(assertion.<String>getAttribute("isMemberOf")).thenReturn(List.of(
+        when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
+                .thenReturn(List.of(
                 "unrelated-group",
-                "groups:personal:nb3f:ABET-Vitae-Admin",
-                "groups:auto:ABET-Vitae-Faculty"));
+                "ABET-Vitae-Admin",
+                "ABET-Vitae-Faculty"));
 
         assertThat(resolver.resolve(assertion))
                 .containsExactlyInAnyOrder(RoleName.ADMIN, RoleName.FACULTY);
