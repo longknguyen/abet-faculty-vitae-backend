@@ -11,18 +11,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
 import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -94,12 +98,48 @@ class AuthenticatedUserServiceTest {
     }
 
     @Test
-    void rejectsAccountWithoutAnAuthorisedGrouperMembership() {
-        UserAccount account = mock(UserAccount.class);
+    void provisionsFirstTimeUserWithAnAuthorisedGrouperMembership() {
+        UUID accountId = UUID.fromString("0199f80f-3bf3-7ed1-b5f8-060591413962");
         Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
         Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
 
-        when(account.isEnabled()).thenReturn(true);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getCredentials()).thenReturn(assertion);
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.1"))
+                .thenReturn("abc1de");
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.3"))
+                .thenReturn("Faculty@Virginia.edu");
+        when(assertion.getFirstAttribute("urn:oid:2.16.840.1.113730.3.1.241"))
+                .thenReturn("Alex Morgan");
+        when(assertion.getFirstAttribute("urn:oid:2.5.4.4")).thenReturn("Morgan");
+        when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
+                .thenReturn(List.of(
+                        "cn=ABET-Vitae-Admin,ou=Personal,ou=Groups,"
+                                + "o=University of Virginia,c=US"));
+        when(userAccountRepository.findByExternalSubject("abc1de"))
+                .thenReturn(Optional.empty());
+        when(userAccountRepository.findByEmailIgnoreCase("Faculty@Virginia.edu"))
+                .thenReturn(Optional.empty());
+        when(userAccountRepository.save(any(UserAccount.class))).thenAnswer(invocation -> {
+            UserAccount account = invocation.getArgument(0);
+            ReflectionTestUtils.setField(account, "id", accountId);
+            return account;
+        });
+
+        AuthenticatedUser user = service.requireUser(authentication);
+
+        assertThat(user.accountId()).isEqualTo(accountId);
+        assertThat(user.displayName()).isEqualTo("Alex Morgan");
+        assertThat(user.surname()).isEqualTo("Morgan");
+        assertThat(user.roles()).containsExactly(RoleName.ADMIN);
+        verify(userAccountRepository).save(any(UserAccount.class));
+    }
+
+    @Test
+    void rejectsAccountWithoutAnAuthorisedGrouperMembership() {
+        Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
+        Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
+
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getCredentials()).thenReturn(assertion);
         when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.1"))
@@ -108,8 +148,6 @@ class AuthenticatedUserServiceTest {
                 .thenReturn("faculty@virginia.edu");
         when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
                 .thenReturn(List.of("unrelated-group"));
-        when(userAccountRepository.findByExternalSubject("abc1de"))
-                .thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.requireUser(authentication))
                 .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
@@ -117,6 +155,32 @@ class AuthenticatedUserServiceTest {
                     assertThat(exception.getReason()).isEqualTo(
                             "The authenticated identity is not a member of an authorised Grouper group");
                 });
+        verify(userAccountRepository, never()).save(any(UserAccount.class));
+    }
+
+    @Test
+    void rejectsFirstTimeUserWithoutAStableIdentifier() {
+        Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
+        Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getCredentials()).thenReturn(assertion);
+        when(assertion.getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.3"))
+                .thenReturn("faculty@virginia.edu");
+        when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
+                .thenReturn(List.of(
+                        "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,"
+                                + "o=University of Virginia,c=US"));
+        when(userAccountRepository.findByEmailIgnoreCase("faculty@virginia.edu"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requireUser(authentication))
+                .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                    assertThat(exception.getReason()).isEqualTo(
+                            "The identity provider did not release a stable user identifier");
+                });
+        verify(userAccountRepository, never()).save(any(UserAccount.class));
     }
 
     @Test

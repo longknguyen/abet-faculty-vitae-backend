@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Optional;
 import java.util.Set;
 
-/** Resolves a NetBadge principal to a pre-authorised local application account. */
+/** Resolves an authorised NetBadge principal to its local application account. */
 @Service
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class AuthenticatedUserService {
@@ -32,20 +32,18 @@ public class AuthenticatedUserService {
         }
 
         PrincipalAttributes attributes = attributes(authentication);
-        UserAccount account = findAccount(attributes)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "The authenticated identity is not authorised for this application"));
-
-        if (!account.isEnabled()) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "The application account is disabled");
-        }
         if (attributes.roles().isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "The authenticated identity is not a member of an authorised Grouper group");
+        }
+
+        UserAccount account = findAccount(attributes)
+                .orElseGet(() -> provisionAccount(attributes));
+        if (!account.isEnabled()) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "The application account is disabled");
         }
 
         bindExternalSubject(account, attributes.externalSubject());
@@ -66,6 +64,18 @@ public class AuthenticatedUserService {
             }
         }
         return userAccountRepository.findByEmailIgnoreCase(attributes.email());
+    }
+
+    private UserAccount provisionAccount(PrincipalAttributes attributes) {
+        if (attributes.externalSubject() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "The identity provider did not release a stable user identifier");
+        }
+        UserAccount account = UserAccount.fromNetBadgeIdentity(
+                attributes.email(),
+                attributes.externalSubject());
+        return userAccountRepository.save(account);
     }
 
     private static void bindExternalSubject(UserAccount account, String externalSubject) {

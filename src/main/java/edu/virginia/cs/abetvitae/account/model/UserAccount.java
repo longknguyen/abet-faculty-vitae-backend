@@ -14,6 +14,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @Getter
@@ -28,6 +29,13 @@ import java.util.UUID;
         )
 )
 public class UserAccount {
+
+    public static UserAccount fromNetBadgeIdentity(String email, String externalSubject) {
+        UserAccount account = new UserAccount();
+        account.email = email.strip().toLowerCase(Locale.ROOT);
+        account.externalSubject = externalSubject.strip();
+        return account;
+    }
 
     @Id
     @GeneratedValue
