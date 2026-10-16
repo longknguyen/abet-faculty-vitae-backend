@@ -1,0 +1,76 @@
+package edu.virginia.cs.abetvitae.account.security;
+
+import edu.virginia.cs.abetvitae.account.model.RoleName;
+import edu.virginia.cs.abetvitae.account.model.UserAccount;
+import edu.virginia.cs.abetvitae.account.repository.UserAccountRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
+import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
+
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class AuthenticatedUserServiceTest {
+
+    @Mock
+    private UserAccountRepository userAccountRepository;
+
+    private AuthenticatedUserService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new AuthenticatedUserService(
+                userAccountRepository,
+                new IdentityAttributeProperties("uid", "mail", "displayName", "sn"));
+    }
+
+    @Test
+    void bindsVerifiedNetBadgeSubjectToPreauthorisedEmailAccount() {
+        UUID accountId = UUID.fromString("0199f80f-3bf3-7ed1-b5f8-060591413962");
+        AtomicReference<String> externalSubject = new AtomicReference<>();
+        UserAccount account = mock(UserAccount.class);
+        Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
+        Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
+
+        when(account.getId()).thenReturn(accountId);
+        when(account.getEmail()).thenReturn("faculty@virginia.edu");
+        when(account.isEnabled()).thenReturn(true);
+        when(account.getRoles()).thenReturn(Set.of(RoleName.FACULTY));
+        when(account.getExternalSubject()).thenAnswer(ignored -> externalSubject.get());
+        doAnswer(invocation -> {
+            externalSubject.set(invocation.getArgument(0));
+            return null;
+        }).when(account).setExternalSubject(anyString());
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getCredentials()).thenReturn(assertion);
+        when(assertion.getFirstAttribute("uid")).thenReturn("abc1de");
+        when(assertion.getFirstAttribute("mail")).thenReturn("faculty@virginia.edu");
+        when(assertion.getFirstAttribute("displayName")).thenReturn("Alex Morgan");
+        when(assertion.getFirstAttribute("sn")).thenReturn("Morgan");
+        when(userAccountRepository.findByExternalSubject("abc1de"))
+                .thenReturn(Optional.empty());
+        when(userAccountRepository.findByEmailIgnoreCase("faculty@virginia.edu"))
+                .thenReturn(Optional.of(account));
+
+        AuthenticatedUser user = service.requireUser(authentication);
+
+        assertThat(account.getExternalSubject()).isEqualTo("abc1de");
+        assertThat(user.accountId()).isEqualTo(accountId);
+        assertThat(user.displayName()).isEqualTo("Alex Morgan");
+        assertThat(user.surname()).isEqualTo("Morgan");
+        assertThat(user.roles()).containsExactly(RoleName.FACULTY);
+    }
+}
