@@ -34,7 +34,7 @@ public class ProfessionalDevelopment {
     @JoinColumn(name = "professor_id", nullable = false)
     private Professor professor;
 
-    @Column(name = "activity_name", nullable = false, length = 20)
+    @Column(name = "activity_name", nullable = false, length = 255)
     private String activityName;
 
     @Column(name = "provider", nullable = true, length = 255)

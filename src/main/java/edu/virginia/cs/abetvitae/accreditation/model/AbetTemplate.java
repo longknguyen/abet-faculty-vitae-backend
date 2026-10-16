@@ -43,6 +43,9 @@ public class AbetTemplate {
     @Column(name = "review_cycle", nullable = false, length = 50)
     private String reviewCycle;
 
+    @Column(name = "department_name", nullable = false, length = 200)
+    private String departmentName;
+
     @Column(name = "revision_number", nullable = false)
     private int revisionNumber;
 
