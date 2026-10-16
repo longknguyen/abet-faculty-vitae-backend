@@ -33,10 +33,6 @@ services:
     mem_limit: '4g'
     cpus: 1.0
     restart: unless-stopped
-  ollama:
-    image: 'ollama/ollama:latest'
-    ports:
-      - '11434'
   postgres:
     image: 'postgres:latest'
     environment:
@@ -45,14 +41,6 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432'
-  rabbitmq:
-    image: 'rabbitmq:latest'
-    environment:
-      - 'RABBITMQ_DEFAULT_PASS=secret'
-      - 'RABBITMQ_DEFAULT_USER=myuser'
-    ports:
-      - '5672'
-
 volumes:
   clamav-signatures:
 

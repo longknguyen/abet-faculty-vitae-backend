@@ -27,9 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
             "app.netbadge.idp-metadata-uri=classpath:saml/test-idp-metadata.xml",
             "app.netbadge.frontend-base-url=https://faculty-vitae-frontend.example.edu/",
             "app.netbadge.assertion-consumer-service-base-url="
-                    + "https://faculty-vitae-frontend.example.edu/",
-            "testcontainers.ollama.enabled=false",
-            "testcontainers.rabbitmq.enabled=false"
+                    + "https://faculty-vitae-frontend.example.edu/"
         }
 )
 class NetBadgeMetadataEndpointTest {
