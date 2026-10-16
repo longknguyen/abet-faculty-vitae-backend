@@ -2,7 +2,6 @@ package edu.virginia.cs.abetvitae.accreditation.model;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
-import edu.virginia.cs.abetvitae.faculty.model.Professor;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -14,9 +13,7 @@ class FacultyCycleRecordTest {
 
     @Test
     void newRecordStartsAsFirstDraftRevision() {
-        FacultyCycleRecord record = FacultyCycleRecord.create(
-                mock(Professor.class),
-                new AbetTemplate());
+        FacultyCycleRecord record = new FacultyCycleRecord();
 
         assertThat(record.getStatus()).isEqualTo(FacultyCycleStatus.DRAFT);
         assertThat(record.getContentRevision()).isEqualTo(1);
@@ -24,9 +21,7 @@ class FacultyCycleRecordTest {
 
     @Test
     void markingContentChangedCreatesDraftAndClearsVerification() {
-        FacultyCycleRecord record = FacultyCycleRecord.create(
-                mock(Professor.class),
-                new AbetTemplate());
+        FacultyCycleRecord record = new FacultyCycleRecord();
         record.setContentRevision(4);
         record.setStatus(FacultyCycleStatus.VERIFIED);
         record.setSubmittedAt(Instant.parse("2026-09-01T12:00:00Z"));

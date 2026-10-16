@@ -4,7 +4,6 @@ import edu.virginia.cs.abetvitae.account.model.RoleName;
 import edu.virginia.cs.abetvitae.account.security.AuthenticatedUser;
 import edu.virginia.cs.abetvitae.accreditation.model.AbetTemplate;
 import edu.virginia.cs.abetvitae.accreditation.model.AbetTemplateStatus;
-import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
 import edu.virginia.cs.abetvitae.accreditation.repository.AbetTemplateRepository;
 import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepository;
 import edu.virginia.cs.abetvitae.extraction.repository.CvUploadRepository;
@@ -22,15 +21,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,8 +38,6 @@ class HomeServiceTest {
             "0199f80f-4e52-7785-ad78-da3215e9e746");
     private static final UUID TEMPLATE_ID = UUID.fromString(
             "0199f80f-6075-7264-90bb-7312387c670c");
-    private static final UUID RECORD_ID = UUID.fromString(
-            "0199f80f-6d8c-718b-b450-2bd7cb187901");
 
     @Mock
     private AbetTemplateRepository abetTemplateRepository;
@@ -91,36 +85,17 @@ class HomeServiceTest {
     }
 
     @Test
-    void provisionsFirstFacultyCycleRecordBeforeReturningHome() {
+    void returnsFirstTimeFacultyHomeWithoutCreatingARecord() {
         when(facultyCycleRecordRepository.findByProfessorIdAndAbetTemplateId(
                 PROFESSOR_ID,
                 TEMPLATE_ID)).thenReturn(Optional.empty());
-        when(abetTemplateRepository.findByIdForUpdate(TEMPLATE_ID))
-                .thenReturn(Optional.of(template));
-        FacultyCycleRecord savedRecord = record();
-        when(facultyCycleRecordRepository.save(any(FacultyCycleRecord.class)))
-                .thenReturn(savedRecord);
-        when(cvUploadRepository
-                .findFirstByFacultyCycleRecordIdAndPurgedAtIsNullOrderByUploadedAtDesc(
-                        RECORD_ID)).thenReturn(Optional.empty());
-        when(extractionReviewRepository
-                .findFirstByExtractionRunProcessingJobCvUploadFacultyCycleRecordIdAndStatusOrderByCreatedAtDesc(
-                        RECORD_ID,
-                        edu.virginia.cs.abetvitae.review.model.ExtractionReviewStatus.DRAFT))
-                .thenReturn(Optional.empty());
-        when(educationRepository.findAllByProfessorIdOrderByDisplayOrderAsc(PROFESSOR_ID))
-                .thenReturn(List.of());
-        when(experienceRepository.findAllByProfessorIdOrderByDisplayOrderAsc(PROFESSOR_ID))
-                .thenReturn(List.of());
 
         HomeResponse response = service.loadHome(facultyUser());
 
         assertThat(response.cycle().label()).isEqualTo("2026–27");
         assertThat(response.cycle().departmentName()).isEqualTo("Computer Science");
-        assertThat(response.personalVitae().facultyCycleRecordId()).isEqualTo(RECORD_ID);
-        assertThat(response.personalVitae().sourceCv()).isNull();
+        assertThat(response.personalVitae()).isNull();
         assertThat(response.facultyRecords()).isEmpty();
-        verify(abetTemplateRepository).findByIdForUpdate(TEMPLATE_ID);
     }
 
     private static AuthenticatedUser facultyUser() {
@@ -144,12 +119,6 @@ class HomeServiceTest {
         when(value.getId()).thenReturn(PROFESSOR_ID);
         when(value.getFamilyName()).thenReturn("Morgan");
         when(value.getDisplayName()).thenReturn("Alex Morgan");
-        return value;
-    }
-
-    private FacultyCycleRecord record() {
-        FacultyCycleRecord value = FacultyCycleRecord.create(professor, template);
-        value.setId(RECORD_ID);
         return value;
     }
 }

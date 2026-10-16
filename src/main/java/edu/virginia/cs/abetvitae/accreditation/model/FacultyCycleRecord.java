@@ -25,7 +25,6 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -83,13 +82,6 @@ public class FacultyCycleRecord {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
-
-    public static FacultyCycleRecord create(Professor professor, AbetTemplate abetTemplate) {
-        FacultyCycleRecord record = new FacultyCycleRecord();
-        record.setProfessor(Objects.requireNonNull(professor));
-        record.setAbetTemplate(Objects.requireNonNull(abetTemplate));
-        return record;
-    }
 
     public void markContentChanged() {
         contentRevision++;

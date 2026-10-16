@@ -54,7 +54,7 @@ public class HomeService {
     private final ExtractionReviewRepository extractionReviewRepository;
     private final ExtractionReviewItemRepository extractionReviewItemRepository;
 
-    @Transactional
+    @Transactional(readOnly = true)
     public HomeResponse loadHome(AuthenticatedUser user) {
         AbetTemplate template = currentTemplate();
         Optional<Professor> professor = professorRepository.findByUserAccountId(user.accountId());
@@ -91,22 +91,7 @@ public class HomeService {
                 "The faculty account is not linked to a professor record"));
         return facultyCycleRecordRepository
                 .findByProfessorIdAndAbetTemplateId(linkedProfessor.getId(), template.getId())
-                .orElseGet(() -> createPersonalRecord(linkedProfessor, template));
-    }
-
-    private FacultyCycleRecord createPersonalRecord(Professor professor, AbetTemplate template) {
-        AbetTemplate lockedTemplate = abetTemplateRepository.findByIdForUpdate(template.getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.SERVICE_UNAVAILABLE,
-                        "The published ABET template is no longer available"));
-        return facultyCycleRecordRepository
-                .findByProfessorIdAndAbetTemplateId(professor.getId(), lockedTemplate.getId())
-                .orElseGet(() -> {
-                    FacultyCycleRecord record = FacultyCycleRecord.create(
-                            professor,
-                            lockedTemplate);
-                    return facultyCycleRecordRepository.save(record);
-                });
+                .orElse(null);
     }
 
     private static HomeResponse.CurrentUser currentUser(
