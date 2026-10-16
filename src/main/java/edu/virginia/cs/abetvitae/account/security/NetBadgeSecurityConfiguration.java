@@ -29,12 +29,15 @@ public class NetBadgeSecurityConfiguration {
     RelyingPartyRegistrationRepository netBadgeRelyingPartyRegistrationRepository(
             NetBadgeProperties properties) {
         String normalisedBaseUrl = properties.normalisedBaseUrl();
+        String normalisedAssertionConsumerServiceBaseUrl =
+                properties.normalisedAssertionConsumerServiceBaseUrl();
         RelyingPartyRegistration registration = RelyingPartyRegistrations
                 .fromMetadataLocation(properties.idpMetadataUri())
                 .registrationId(REGISTRATION_ID)
                 .entityId(normalisedBaseUrl + METADATA_PATH)
                 .assertionConsumerServiceLocation(
-                        normalisedBaseUrl + ASSERTION_CONSUMER_SERVICE_PATH
+                        normalisedAssertionConsumerServiceBaseUrl
+                                + ASSERTION_CONSUMER_SERVICE_PATH
                 )
                 .build();
 
