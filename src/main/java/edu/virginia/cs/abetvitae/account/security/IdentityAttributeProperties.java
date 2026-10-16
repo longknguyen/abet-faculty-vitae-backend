@@ -8,13 +8,19 @@ public record IdentityAttributeProperties(
         String subjectAttribute,
         String emailAttribute,
         String displayNameAttribute,
-        String surnameAttribute) {
+        String surnameAttribute,
+        String membershipAttribute,
+        String administratorGroup,
+        String facultyGroup) {
 
     public IdentityAttributeProperties {
         requireText(subjectAttribute, "subject");
         requireText(emailAttribute, "email");
         requireText(displayNameAttribute, "display name");
         requireText(surnameAttribute, "surname");
+        requireText(membershipAttribute, "group membership");
+        requireText(administratorGroup, "administrator group");
+        requireText(facultyGroup, "faculty group");
     }
 
     private static void requireText(String value, String label) {
