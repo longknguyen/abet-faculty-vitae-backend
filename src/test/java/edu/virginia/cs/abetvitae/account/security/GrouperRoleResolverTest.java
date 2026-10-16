@@ -23,8 +23,8 @@ class GrouperRoleResolverTest {
                 "urn:oid:2.16.840.1.113730.3.1.241",
                 "sn",
                 "urn:oid:1.3.6.1.4.1.5923.1.5.1.1",
-                "ABET-Vitae-Admin",
-                "ABET-Vitae-Faculty");
+                "cn=ABET-Vitae-Admin,ou=Personal,ou=Groups,o=University of Virginia,c=US",
+                "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,o=University of Virginia,c=US");
         resolver = new GrouperRoleResolver(properties);
     }
 
@@ -34,8 +34,9 @@ class GrouperRoleResolverTest {
         when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
                 .thenReturn(List.of(
                 "unrelated-group",
-                "ABET-Vitae-Admin",
-                "ABET-Vitae-Faculty"));
+                "cn=ABET-Vitae-Admin,ou=Personal,ou=Groups,o=University of Virginia,c=US",
+                "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,"
+                        + "o=University of Virginia,c=US"));
 
         assertThat(resolver.resolve(assertion))
                 .containsExactlyInAnyOrder(RoleName.ADMIN, RoleName.FACULTY);
