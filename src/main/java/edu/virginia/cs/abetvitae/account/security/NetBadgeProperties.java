@@ -4,10 +4,13 @@ import java.net.URI;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Profile;
 
-/** Service-provider and identity-provider locations used by the NetBadge profile. */
+/** Application and identity-provider locations used by the NetBadge profile. */
 @ConfigurationProperties("app.netbadge")
 @Profile("netbadge")
-public record NetBadgeProperties(String baseUrl, String idpMetadataUri) {
+public record NetBadgeProperties(
+        String baseUrl,
+        String idpMetadataUri,
+        String frontendBaseUrl) {
 
     public NetBadgeProperties {
         if (baseUrl == null || baseUrl.isBlank()) {
@@ -16,19 +19,35 @@ public record NetBadgeProperties(String baseUrl, String idpMetadataUri) {
         if (idpMetadataUri == null || idpMetadataUri.isBlank()) {
             throw new IllegalArgumentException("The NetBadge IdP metadata location is required");
         }
-
-        URI parsedBaseUrl = URI.create(baseUrl);
-        if (parsedBaseUrl.getHost() == null
-                || parsedBaseUrl.getUserInfo() != null
-                || parsedBaseUrl.getQuery() != null
-                || parsedBaseUrl.getFragment() != null
-                || !("http".equalsIgnoreCase(parsedBaseUrl.getScheme())
-                        || "https".equalsIgnoreCase(parsedBaseUrl.getScheme()))) {
-            throw new IllegalArgumentException("The NetBadge application base URL is invalid");
+        if (frontendBaseUrl == null || frontendBaseUrl.isBlank()) {
+            throw new IllegalArgumentException("The frontend base URL is required");
         }
+
+        validateBaseUrl(baseUrl, "NetBadge application");
+        validateBaseUrl(frontendBaseUrl, "frontend");
     }
 
     String normalisedBaseUrl() {
         return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    }
+
+    String normalisedFrontendBaseUrl() {
+        return frontendBaseUrl.endsWith("/")
+                ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
+                : frontendBaseUrl;
+    }
+
+    private static void validateBaseUrl(String value, String label) {
+        URI parsedUrl = URI.create(value);
+        String path = parsedUrl.getPath();
+        if (parsedUrl.getHost() == null
+                || parsedUrl.getUserInfo() != null
+                || parsedUrl.getQuery() != null
+                || parsedUrl.getFragment() != null
+                || !(path == null || path.isEmpty() || "/".equals(path))
+                || !("http".equalsIgnoreCase(parsedUrl.getScheme())
+                        || "https".equalsIgnoreCase(parsedUrl.getScheme()))) {
+            throw new IllegalArgumentException("The " + label + " base URL is invalid");
+        }
     }
 }
