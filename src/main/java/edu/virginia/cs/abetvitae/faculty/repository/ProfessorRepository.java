@@ -14,4 +14,6 @@ public interface ProfessorRepository extends JpaRepository<Professor, UUID> {
     Optional<Professor> findByUserAccountId(UUID userAccountId);
 
     List<Professor> findAllByOrderByFamilyNameAscGivenNameAsc();
+
+    List<Professor> findAllByEmailIgnoreCase(String email);
 }

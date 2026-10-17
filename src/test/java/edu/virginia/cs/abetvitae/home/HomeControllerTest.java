@@ -51,7 +51,8 @@ class HomeControllerTest {
                         Set.of(RoleName.FACULTY)),
                 new HomeResponse.Cycle(templateId, "2026–27", "Computer Science"),
                 null,
-                List.of());
+                List.of(),
+                        true);
         TestingAuthenticationToken authentication = new TestingAuthenticationToken(
                 "faculty@virginia.edu",
                 null);

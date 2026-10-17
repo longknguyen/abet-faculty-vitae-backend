@@ -60,6 +60,7 @@ public class HomeService {
                 .map(value -> personalRecord(user, professor, value))
                 .orElse(null);
 
+        boolean onboardingNeeded = user.hasRole(RoleName.FACULTY) && professor.isEmpty();
         return new HomeResponse(
                 currentUser(user, professor),
                 template.map(value -> new HomeResponse.Cycle(
@@ -69,7 +70,8 @@ public class HomeService {
                 personalRecord == null ? null : personalVitae(personalRecord),
                 user.hasRole(RoleName.ADMIN) && template.isPresent()
                         ? facultyRecords(template.orElseThrow())
-                        : List.of());
+                        : List.of(),
+                onboardingNeeded);
     }
 
     private Optional<AbetTemplate> currentTemplate() {
