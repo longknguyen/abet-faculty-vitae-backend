@@ -63,4 +63,22 @@ public class Professor {
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
     }
+
+    public static Professor createForAccount(
+            UserAccount userAccount,
+            String givenName,
+            String middleName,
+            String familyName,
+            String suffix) {
+
+        Professor professor = new Professor();
+        professor.setUserAccount(userAccount);
+        professor.setEmail(userAccount.getEmail());
+        professor.setGivenName(givenName);
+        professor.setMiddleName(middleName);
+        professor.setFamilyName(familyName);
+        professor.setSuffix(suffix);
+
+        return professor;
+    }
 }
