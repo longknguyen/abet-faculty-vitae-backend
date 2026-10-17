@@ -15,7 +15,8 @@ public record HomeResponse(
         CurrentUser currentUser,
         Cycle cycle,
         PersonalVitae personalVitae,
-        List<FacultyRecord> facultyRecords) {
+        List<FacultyRecord> facultyRecords,
+        boolean onboardingNeeded) {
 
     public HomeResponse {
         facultyRecords = List.copyOf(facultyRecords);
