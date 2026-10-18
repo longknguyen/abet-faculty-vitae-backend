@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
 import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
@@ -21,11 +22,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +35,9 @@ class AuthenticatedUserServiceTest {
 
     @Mock
     private UserAccountRepository userAccountRepository;
+
+    @Mock
+    private UserAccountProvisioner userAccountProvisioner;
 
     private AuthenticatedUserService service;
     private IdentityAttributeProperties attributeProperties;
@@ -50,6 +54,7 @@ class AuthenticatedUserServiceTest {
                 "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,o=University of Virginia,c=US");
         service = new AuthenticatedUserService(
                 userAccountRepository,
+                userAccountProvisioner,
                 attributeProperties,
                 new GrouperRoleResolver(attributeProperties));
     }
@@ -120,11 +125,14 @@ class AuthenticatedUserServiceTest {
                 .thenReturn(Optional.empty());
         when(userAccountRepository.findByEmailIgnoreCase("Faculty@Virginia.edu"))
                 .thenReturn(Optional.empty());
-        when(userAccountRepository.save(any(UserAccount.class))).thenAnswer(invocation -> {
-            UserAccount account = invocation.getArgument(0);
-            ReflectionTestUtils.setField(account, "id", accountId);
-            return account;
-        });
+        when(userAccountProvisioner.provision("Faculty@Virginia.edu", "abc1de"))
+                .thenAnswer(invocation -> {
+                    UserAccount account = UserAccount.fromNetBadgeIdentity(
+                            invocation.getArgument(0),
+                            invocation.getArgument(1));
+                    ReflectionTestUtils.setField(account, "id", accountId);
+                    return account;
+                });
 
         AuthenticatedUser user = service.requireUser(authentication);
 
@@ -132,7 +140,35 @@ class AuthenticatedUserServiceTest {
         assertThat(user.displayName()).isEqualTo("Alex Morgan");
         assertThat(user.surname()).isEqualTo("Morgan");
         assertThat(user.roles()).containsExactly(RoleName.ADMIN);
-        verify(userAccountRepository).save(any(UserAccount.class));
+        verify(userAccountProvisioner).provision("Faculty@Virginia.edu", "abc1de");
+    }
+
+    @Test
+    void rereadsAccountWhenConcurrentProvisioningWinsTheInsertRace() {
+        UUID accountId = UUID.fromString("0199f80f-3bf3-7ed1-b5f8-060591413962");
+        UserAccount account = mock(UserAccount.class);
+        Saml2AssertionAuthentication authentication = authorisedAuthentication(
+                "abc1de",
+                "faculty@virginia.edu");
+
+        when(account.getId()).thenReturn(accountId);
+        when(account.getEmail()).thenReturn("faculty@virginia.edu");
+        when(account.getExternalSubject()).thenReturn("abc1de");
+        when(account.isEnabled()).thenReturn(true);
+        when(userAccountRepository.findByExternalSubject("abc1de"))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(account));
+        when(userAccountRepository.findByEmailIgnoreCase("faculty@virginia.edu"))
+                .thenReturn(Optional.empty());
+        when(userAccountProvisioner.provision("faculty@virginia.edu", "abc1de"))
+                .thenThrow(new DataIntegrityViolationException("duplicate account"));
+
+        AuthenticatedUser user = service.requireUser(authentication);
+
+        assertThat(user.accountId()).isEqualTo(accountId);
+        assertThat(user.displayName()).isEqualTo("Alex Morgan");
+        assertThat(user.roles()).containsExactly(RoleName.FACULTY);
+        verify(userAccountRepository, times(2)).findByExternalSubject("abc1de");
     }
 
     @Test
@@ -155,7 +191,7 @@ class AuthenticatedUserServiceTest {
                     assertThat(exception.getReason()).isEqualTo(
                             "The authenticated identity is not a member of an authorised Grouper group");
                 });
-        verify(userAccountRepository, never()).save(any(UserAccount.class));
+        verify(userAccountProvisioner, never()).provision(anyString(), anyString());
     }
 
     @Test
@@ -180,7 +216,7 @@ class AuthenticatedUserServiceTest {
                     assertThat(exception.getReason()).isEqualTo(
                             "The identity provider did not release a stable user identifier");
                 });
-        verify(userAccountRepository, never()).save(any(UserAccount.class));
+        verify(userAccountProvisioner, never()).provision(anyString(), anyString());
     }
 
     @Test
@@ -194,5 +230,26 @@ class AuthenticatedUserServiceTest {
                     assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
                     assertThat(exception.getReason()).isEqualTo("The SAML assertion is missing");
                 });
+    }
+
+    private Saml2AssertionAuthentication authorisedAuthentication(
+            String externalSubject,
+            String email) {
+        Saml2ResponseAssertionAccessor assertion = mock(Saml2ResponseAssertionAccessor.class);
+        Saml2AssertionAuthentication authentication = mock(Saml2AssertionAuthentication.class);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getCredentials()).thenReturn(assertion);
+        when(assertion.<String>getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.1"))
+                .thenReturn(externalSubject);
+        when(assertion.<String>getFirstAttribute("urn:oid:0.9.2342.19200300.100.1.3"))
+                .thenReturn(email);
+        when(assertion.<String>getFirstAttribute("urn:oid:2.16.840.1.113730.3.1.241"))
+                .thenReturn("Alex Morgan");
+        when(assertion.<String>getFirstAttribute("urn:oid:2.5.4.4")).thenReturn("Morgan");
+        when(assertion.<String>getAttribute("urn:oid:1.3.6.1.4.1.5923.1.5.1.1"))
+                .thenReturn(List.of(
+                        "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,"
+                                + "o=University of Virginia,c=US"));
+        return authentication;
     }
 }

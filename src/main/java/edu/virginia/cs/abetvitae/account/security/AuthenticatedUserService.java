@@ -5,6 +5,7 @@ import edu.virginia.cs.abetvitae.account.model.UserAccount;
 import edu.virginia.cs.abetvitae.account.repository.UserAccountRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
@@ -22,6 +23,7 @@ import java.util.Set;
 public class AuthenticatedUserService {
 
     private final UserAccountRepository userAccountRepository;
+    private final UserAccountProvisioner userAccountProvisioner;
     private final IdentityAttributeProperties attributeProperties;
     private final GrouperRoleResolver grouperRoleResolver;
 
@@ -72,10 +74,13 @@ public class AuthenticatedUserService {
                     HttpStatus.FORBIDDEN,
                     "The identity provider did not release a stable user identifier");
         }
-        UserAccount account = UserAccount.fromNetBadgeIdentity(
-                attributes.email(),
-                attributes.externalSubject());
-        return userAccountRepository.save(account);
+        try {
+            return userAccountProvisioner.provision(
+                    attributes.email(),
+                    attributes.externalSubject());
+        } catch (DataIntegrityViolationException conflict) {
+            return findAccount(attributes).orElseThrow(() -> conflict);
+        }
     }
 
     private static void bindExternalSubject(UserAccount account, String externalSubject) {
