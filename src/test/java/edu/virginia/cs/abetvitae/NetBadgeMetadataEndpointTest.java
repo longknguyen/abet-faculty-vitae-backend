@@ -115,10 +115,58 @@ class NetBadgeMetadataEndpointTest {
     }
 
     @Test
-    void returnsUnauthorizedInsteadOfSamlHtmlForUnauthenticatedApiRequest() throws Exception {
+    void permitsCredentialedOnboardingPostsFromConfiguredFrontend() throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:" + port + "/api/home"))
-                .GET()
+                .uri(URI.create("http://localhost:" + port + "/api/faculty/onboarding"))
+                .header("Origin", "https://faculty-vitae-frontend.example.edu")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "Content-Type, X-XSRF-TOKEN")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("access-control-allow-origin"))
+                .contains("https://faculty-vitae-frontend.example.edu");
+        assertThat(response.headers().firstValue("access-control-allow-methods"))
+                .hasValueSatisfying(methods -> assertThat(methods).contains("POST"));
+        assertThat(response.headers().firstValue("access-control-allow-credentials"))
+                .contains("true");
+    }
+
+    @Test
+    void publishesSpaReadableCsrfCookieForApiRequests() throws Exception {
+        HttpResponse<String> response = requestUnauthenticatedHome();
+
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.headers().allValues("set-cookie"))
+                .filteredOn(cookie -> cookie.startsWith("XSRF-TOKEN="))
+                .singleElement()
+                .satisfies(cookie -> assertThat(cookie)
+                        .contains("Path=/")
+                        .doesNotContain("HttpOnly"));
+    }
+
+    @Test
+    void acceptsMatchingCsrfCookieAndHeaderBeforeCheckingAuthentication() throws Exception {
+        String csrfCookie = requestUnauthenticatedHome().headers().allValues("set-cookie")
+                .stream()
+                .filter(cookie -> cookie.startsWith("XSRF-TOKEN="))
+                .findFirst()
+                .orElseThrow();
+        String csrfToken = csrfCookie.substring(
+                "XSRF-TOKEN=".length(),
+                csrfCookie.indexOf(';'));
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/faculty/onboarding"))
+                .header("Origin", "https://faculty-vitae-frontend.example.edu")
+                .header("Content-Type", "application/json")
+                .header("Cookie", "XSRF-TOKEN=" + csrfToken)
+                .header("X-XSRF-TOKEN", csrfToken)
+                .POST(HttpRequest.BodyPublishers.ofString("{}"))
                 .build();
         HttpResponse<String> response = HttpClient.newHttpClient().send(
                 request,
@@ -126,6 +174,24 @@ class NetBadgeMetadataEndpointTest {
         );
 
         assertThat(response.statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void returnsUnauthorizedInsteadOfSamlHtmlForUnauthenticatedApiRequest() throws Exception {
+        HttpResponse<String> response = requestUnauthenticatedHome();
+
+        assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.headers().firstValue("location")).isEmpty();
+    }
+
+    private HttpResponse<String> requestUnauthenticatedHome() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/home"))
+                .GET()
+                .build();
+        return HttpClient.newHttpClient().send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
     }
 }
