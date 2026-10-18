@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -34,6 +33,9 @@ class AuthenticatedUserServiceTest {
 
     @Mock
     private UserAccountRepository userAccountRepository;
+
+    @Mock
+    private UserAccountProvisioner userAccountProvisioner;
 
     private AuthenticatedUserService service;
     private IdentityAttributeProperties attributeProperties;
@@ -50,6 +52,7 @@ class AuthenticatedUserServiceTest {
                 "cn=ABET-Vitae-Faculty,ou=Automated,ou=Groups,o=University of Virginia,c=US");
         service = new AuthenticatedUserService(
                 userAccountRepository,
+                userAccountProvisioner,
                 attributeProperties,
                 new GrouperRoleResolver(attributeProperties));
     }
@@ -120,11 +123,14 @@ class AuthenticatedUserServiceTest {
                 .thenReturn(Optional.empty());
         when(userAccountRepository.findByEmailIgnoreCase("Faculty@Virginia.edu"))
                 .thenReturn(Optional.empty());
-        when(userAccountRepository.save(any(UserAccount.class))).thenAnswer(invocation -> {
-            UserAccount account = invocation.getArgument(0);
-            ReflectionTestUtils.setField(account, "id", accountId);
-            return account;
-        });
+        when(userAccountProvisioner.provision("Faculty@Virginia.edu", "abc1de"))
+                .thenAnswer(invocation -> {
+                    UserAccount account = UserAccount.fromNetBadgeIdentity(
+                            invocation.getArgument(0),
+                            invocation.getArgument(1));
+                    ReflectionTestUtils.setField(account, "id", accountId);
+                    return account;
+                });
 
         AuthenticatedUser user = service.requireUser(authentication);
 
@@ -132,7 +138,7 @@ class AuthenticatedUserServiceTest {
         assertThat(user.displayName()).isEqualTo("Alex Morgan");
         assertThat(user.surname()).isEqualTo("Morgan");
         assertThat(user.roles()).containsExactly(RoleName.ADMIN);
-        verify(userAccountRepository).save(any(UserAccount.class));
+        verify(userAccountProvisioner).provision("Faculty@Virginia.edu", "abc1de");
     }
 
     @Test
@@ -155,7 +161,7 @@ class AuthenticatedUserServiceTest {
                     assertThat(exception.getReason()).isEqualTo(
                             "The authenticated identity is not a member of an authorised Grouper group");
                 });
-        verify(userAccountRepository, never()).save(any(UserAccount.class));
+        verify(userAccountProvisioner, never()).provision(anyString(), anyString());
     }
 
     @Test
@@ -180,7 +186,7 @@ class AuthenticatedUserServiceTest {
                     assertThat(exception.getReason()).isEqualTo(
                             "The identity provider did not release a stable user identifier");
                 });
-        verify(userAccountRepository, never()).save(any(UserAccount.class));
+        verify(userAccountProvisioner, never()).provision(anyString(), anyString());
     }
 
     @Test
