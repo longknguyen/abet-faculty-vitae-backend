@@ -61,7 +61,7 @@ public class NetBadgeSecurityConfiguration {
     CorsConfigurationSource netBadgeCorsConfigurationSource(NetBadgeProperties properties) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(properties.normalisedFrontendBaseUrl()));
-        configuration.setAllowedMethods(List.of("GET", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Accept", "Content-Type", "X-XSRF-TOKEN"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
