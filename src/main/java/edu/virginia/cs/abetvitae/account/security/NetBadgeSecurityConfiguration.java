@@ -15,6 +15,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -79,6 +82,9 @@ public class NetBadgeSecurityConfiguration {
             throws Exception {
         http
                 .cors(cors -> cors.configurationSource(netBadgeCorsConfigurationSource))
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/actuator/health",
@@ -96,7 +102,8 @@ public class NetBadgeSecurityConfiguration {
                                 PathPatternRequestMatcher.pathPattern("/api/**")))
                 .saml2Login(saml -> saml
                         .successHandler(netBadgeAuthenticationSuccessHandler))
-                .saml2Metadata(Customizer.withDefaults());
+                .saml2Metadata(Customizer.withDefaults())
+                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();
     }
