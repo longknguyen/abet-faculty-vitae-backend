@@ -103,7 +103,8 @@ public class FacultyOnboardingService {
                                 request.givenName().strip(),
                                 blankToNull(request.middleName()),
                                 request.familyName().strip(),
-                                blankToNull(request.suffix())))),
+                                blankToNull(request.suffix()),
+                                blankToNull(request.displayName())))),
                 true);
     }
 

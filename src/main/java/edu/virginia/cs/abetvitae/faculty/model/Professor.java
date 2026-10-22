@@ -69,7 +69,8 @@ public class Professor {
             String givenName,
             String middleName,
             String familyName,
-            String suffix) {
+            String suffix,
+            String displayName) {
 
         Professor professor = new Professor();
         professor.setUserAccount(userAccount);
@@ -78,6 +79,10 @@ public class Professor {
         professor.setMiddleName(middleName);
         professor.setFamilyName(familyName);
         professor.setSuffix(suffix);
+        professor.setDisplayNameOverride(
+                displayName == null || displayName.isBlank()
+                        ? givenName
+                        : displayName.strip());
 
         return professor;
     }
