@@ -97,6 +97,15 @@ public class AuthenticatedUserService {
     }
 
     private PrincipalAttributes attributes(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof DevelopmentUserPrincipal principal) {
+            return new PrincipalAttributes(
+                    principal.externalSubject(),
+                    principal.email(),
+                    principal.displayName(),
+                    principal.surname(),
+                    principal.roles());
+        }
+
         if (authentication instanceof Saml2AssertionAuthentication samlAuthentication) {
             Saml2ResponseAssertionAccessor assertion = samlAuthentication.getCredentials();
             if (assertion == null) {

@@ -1,6 +1,33 @@
 # abet-faculty-vitae-backend
 Spring Boot backend for parsing faculty CVs, managing structured records and generating versioned ABET-compliant faculty vitae.
 
+## Local frontend development without NetBadge
+
+Use the opt-in `dev` profile to run the real backend with a fixed local identity. The profile binds
+the server to `127.0.0.1`, does not contact NetBadge, and still enforces the same CSRF cookie/header
+flow used by the deployed frontend.
+
+```shell
+./gradlew bootRun --args='--spring.profiles.active=dev'
+```
+
+The default identity is a new faculty user, so the UI starts with the faculty onboarding flow. The
+account is provisioned in the local database on its first request. To exercise another identity or
+the administrator UI, set any of these before starting the backend:
+
+```shell
+export DEV_USER_EMAIL=admin.dev@virginia.edu
+export DEV_USER_DISPLAY_NAME='Admin Developer'
+export DEV_USER_SURNAME=Developer
+export DEV_USER_ROLES=ADMIN,FACULTY
+./gradlew bootRun --args='--spring.profiles.active=dev'
+```
+
+Then run `pnpm dev` in the frontend repository. Vite proxies `/api` to
+`http://localhost:8080`, so no frontend authentication mock or CORS override is needed. Restart the
+backend after changing the development identity. Do not enable the `dev` profile in a deployment;
+deployed environments must use the `netbadge` profile.
+
 ## Local malware scanner
 
 Start the optional ClamAV service before exercising the CV processing pipeline:

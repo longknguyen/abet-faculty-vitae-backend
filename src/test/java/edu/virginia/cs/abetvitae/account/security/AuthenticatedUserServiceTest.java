@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
 import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -17,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -57,6 +59,40 @@ class AuthenticatedUserServiceTest {
                 userAccountProvisioner,
                 attributeProperties,
                 new GrouperRoleResolver(attributeProperties));
+    }
+
+    @Test
+    void provisionsTheTrustedDevelopmentPrincipal() {
+        UUID accountId = UUID.fromString("0199f80f-3bf3-7ed1-b5f8-060591413962");
+        DevelopmentUserPrincipal principal = new DevelopmentUserPrincipal(
+                "development:faculty.dev@virginia.edu",
+                "faculty.dev@virginia.edu",
+                "Faculty Developer",
+                "Developer",
+                Set.of(RoleName.FACULTY));
+        TestingAuthenticationToken authentication = new TestingAuthenticationToken(
+                principal,
+                null,
+                "ROLE_FACULTY");
+        when(userAccountRepository.findByExternalSubject(principal.externalSubject()))
+                .thenReturn(Optional.empty());
+        when(userAccountRepository.findByEmailIgnoreCase(principal.email()))
+                .thenReturn(Optional.empty());
+        when(userAccountProvisioner.provision(principal.email(), principal.externalSubject()))
+                .thenAnswer(invocation -> {
+                    UserAccount account = UserAccount.fromNetBadgeIdentity(
+                            invocation.getArgument(0),
+                            invocation.getArgument(1));
+                    ReflectionTestUtils.setField(account, "id", accountId);
+                    return account;
+                });
+
+        AuthenticatedUser user = service.requireUser(authentication);
+
+        assertThat(user.accountId()).isEqualTo(accountId);
+        assertThat(user.displayName()).isEqualTo("Faculty Developer");
+        assertThat(user.surname()).isEqualTo("Developer");
+        assertThat(user.roles()).containsExactly(RoleName.FACULTY);
     }
 
     @Test
