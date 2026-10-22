@@ -1,5 +1,6 @@
 package edu.virginia.cs.abetvitae.faculty;
 
+import jakarta.validation.Valid;
 import edu.virginia.cs.abetvitae.account.security.AuthenticatedUser;
 import edu.virginia.cs.abetvitae.account.security.AuthenticatedUserService;
 import edu.virginia.cs.abetvitae.faculty.dto.FacultyOnboardingRequest;
@@ -22,8 +23,7 @@ public class FacultyOnboardingController {
     @PostMapping
     public FacultyOnboardingResponse onboard(
             Authentication authentication,
-            @RequestBody FacultyOnboardingRequest request) {
-
+            @Valid @RequestBody FacultyOnboardingRequest request){
         AuthenticatedUser user = authenticatedUserService.requireUser(authentication);
         var result = facultyOnboardingService.onboard(user, request);
         return result.response();
