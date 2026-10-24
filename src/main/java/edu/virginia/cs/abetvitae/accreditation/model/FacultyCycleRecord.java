@@ -83,6 +83,15 @@ public class FacultyCycleRecord {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    public static FacultyCycleRecord create(
+            Professor professor,
+            AbetTemplate abetTemplate) {
+        FacultyCycleRecord record = new FacultyCycleRecord();
+        record.professor = professor;
+        record.abetTemplate = abetTemplate;
+        return record;
+    }
+
     public void markContentChanged() {
         contentRevision++;
         status = FacultyCycleStatus.DRAFT;
