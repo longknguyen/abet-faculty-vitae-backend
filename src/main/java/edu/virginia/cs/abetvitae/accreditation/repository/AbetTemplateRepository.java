@@ -21,6 +21,8 @@ public interface AbetTemplateRepository extends JpaRepository<AbetTemplate, UUID
 
     List<AbetTemplate> findAllByOrderByReviewCycleDescRevisionNumberDesc();
 
+    Optional<AbetTemplate> findFirstByOrderByReviewCycleDescRevisionNumberDesc();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select template from AbetTemplate template where template.id = :id")
     Optional<AbetTemplate> findByIdForUpdate(@Param("id") UUID id);

@@ -18,6 +18,7 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -45,6 +46,15 @@ public class AbetTemplate {
     @Column(name = "department_name", nullable = false, length = 200)
     private String departmentName;
 
+    @Column(name = "review_start_date")
+    private LocalDate reviewStartDate;
+
+    @Column(name = "review_end_date")
+    private LocalDate reviewEndDate;
+
+    @Column(name = "submission_deadline")
+    private LocalDate submissionDeadline;
+
     @Column(name = "revision_number", nullable = false)
     private int revisionNumber;
 
@@ -68,6 +78,9 @@ public class AbetTemplate {
 
     public static AbetTemplate createDraft(
             String reviewCycle,
+            LocalDate reviewStartDate,
+            LocalDate reviewEndDate,
+            LocalDate submissionDeadline,
             String departmentName,
             int revisionNumber,
             JsonNode requiredSections,
@@ -75,6 +88,9 @@ public class AbetTemplate {
             String renderingTemplateName) {
         AbetTemplate template = new AbetTemplate();
         template.reviewCycle = reviewCycle;
+        template.reviewStartDate = reviewStartDate;
+        template.reviewEndDate = reviewEndDate;
+        template.submissionDeadline = submissionDeadline;
         template.departmentName = departmentName;
         template.revisionNumber = revisionNumber;
         template.requiredSections = requiredSections.deepCopy();
@@ -85,12 +101,18 @@ public class AbetTemplate {
 
     public void updateDraft(
             String reviewCycle,
+            LocalDate reviewStartDate,
+            LocalDate reviewEndDate,
+            LocalDate submissionDeadline,
             String departmentName,
             JsonNode requiredSections,
             JsonNode formattingRules,
             String renderingTemplateName) {
         requireStatus(AbetTemplateStatus.DRAFT);
         this.reviewCycle = reviewCycle;
+        this.reviewStartDate = reviewStartDate;
+        this.reviewEndDate = reviewEndDate;
+        this.submissionDeadline = submissionDeadline;
         this.departmentName = departmentName;
         this.requiredSections = requiredSections.deepCopy();
         this.formattingRules = formattingRules.deepCopy();

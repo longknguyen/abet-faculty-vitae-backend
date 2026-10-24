@@ -13,13 +13,14 @@ import edu.virginia.cs.abetvitae.accreditation.repository.AbetTemplateRepository
 import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepository;
 import edu.virginia.cs.abetvitae.faculty.model.Professor;
 import edu.virginia.cs.abetvitae.faculty.repository.ProfessorRepository;
+import edu.virginia.cs.abetvitae.review.model.ReviewSectionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -60,9 +61,17 @@ class ReviewCycleAdminServiceTest {
                 templateRepository,
                 facultyCycleRecordRepository,
                 professorRepository,
-                new ReviewCycleDefinitionValidator(jsonMapper),
+                new ReviewCycleDefinitionValidator(),
+                new ReviewCycleDefaultsProperties(
+                        "Computer Science",
+                        "faculty-vitae",
+                        List.of(ReviewSectionType.PROFILE, ReviewSectionType.EDUCATION)),
                 jsonMapper);
         when(professorRepository.count()).thenReturn(2L);
+        when(templateRepository.findFirstByStatusOrderByPublishedAtDescRevisionNumberDesc(
+                AbetTemplateStatus.PUBLISHED)).thenReturn(Optional.empty());
+        when(templateRepository.findFirstByOrderByReviewCycleDescRevisionNumberDesc())
+                .thenReturn(Optional.empty());
     }
 
     @Test
@@ -106,6 +115,9 @@ class ReviewCycleAdminServiceTest {
         assertThat(response.id()).isEqualTo(TEMPLATE_ID);
         assertThat(response.revisionNumber()).isEqualTo(3);
         assertThat(response.status()).isEqualTo(AbetTemplateStatus.DRAFT);
+        assertThat(response.startDate()).isEqualTo(LocalDate.of(2026, 7, 1));
+        assertThat(response.endDate()).isEqualTo(LocalDate.of(2027, 6, 30));
+        assertThat(response.submissionDeadline()).isEqualTo(LocalDate.of(2027, 3, 15));
         assertThat(response.requiredSections()).containsExactly("PROFILE", "EDUCATION");
     }
 
@@ -134,14 +146,13 @@ class ReviewCycleAdminServiceTest {
         var response = service.update(user(RoleName.ADMIN), TEMPLATE_ID,
                 new ReviewCycleRequest(
                         "2027–28",
-                        "Electrical Engineering",
-                        List.of("PROFILE"),
-                        Map.of("pageLimit", 3),
-                        "updated-vitae"));
+                        LocalDate.of(2027, 7, 1),
+                        LocalDate.of(2028, 6, 30),
+                        LocalDate.of(2028, 3, 15)));
 
         assertThat(response.label()).isEqualTo("2027–28");
-        assertThat(response.departmentName()).isEqualTo("Electrical Engineering");
-        assertThat(response.renderingTemplateName()).isEqualTo("updated-vitae");
+        assertThat(response.departmentName()).isEqualTo("Computer Science");
+        assertThat(response.renderingTemplateName()).isEqualTo("faculty-vitae");
         assertThat(response.status()).isEqualTo(AbetTemplateStatus.DRAFT);
     }
 
@@ -206,15 +217,17 @@ class ReviewCycleAdminServiceTest {
     private ReviewCycleRequest request() {
         return new ReviewCycleRequest(
                 "2026–27",
-                "Computer Science",
-                List.of("PROFILE", "EDUCATION"),
-                Map.of("pageLimit", 2),
-                "faculty-vitae");
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2027, 6, 30),
+                LocalDate.of(2027, 3, 15));
     }
 
     private AbetTemplate template(AbetTemplateStatus status, UUID id) {
         AbetTemplate template = AbetTemplate.createDraft(
                 "2026–27",
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2027, 6, 30),
+                LocalDate.of(2027, 3, 15),
                 "Computer Science",
                 1,
                 objectMapper.createArrayNode().add("PROFILE"),

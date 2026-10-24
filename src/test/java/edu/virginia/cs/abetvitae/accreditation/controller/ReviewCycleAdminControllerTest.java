@@ -13,6 +13,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -68,10 +69,9 @@ class ReviewCycleAdminControllerTest {
         when(service.create(any(), any())).thenReturn(response());
         String request = new ObjectMapper().writeValueAsString(Map.of(
                 "label", "2026–27",
-                "departmentName", "Computer Science",
-                "requiredSections", List.of("PROFILE"),
-                "formattingRules", Map.of(),
-                "renderingTemplateName", "faculty-vitae"));
+                "startDate", "2026-07-01",
+                "endDate", "2027-06-30",
+                "submissionDeadline", "2027-03-15"));
 
         mockMvc.perform(post("/api/admin/review-cycles")
                         .principal(authentication)
@@ -85,6 +85,9 @@ class ReviewCycleAdminControllerTest {
         return new ReviewCycleResponse(
                 TEMPLATE_ID,
                 "2026–27",
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2027, 6, 30),
+                LocalDate.of(2027, 3, 15),
                 "Computer Science",
                 1,
                 AbetTemplateStatus.DRAFT,

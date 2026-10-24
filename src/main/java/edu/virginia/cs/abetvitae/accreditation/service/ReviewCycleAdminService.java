@@ -1,6 +1,8 @@
 package edu.virginia.cs.abetvitae.accreditation.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import edu.virginia.cs.abetvitae.account.model.RoleName;
 import edu.virginia.cs.abetvitae.account.security.AuthenticatedUser;
 import edu.virginia.cs.abetvitae.accreditation.dto.ProvisionReviewCycleResponse;
@@ -35,6 +37,7 @@ public class ReviewCycleAdminService {
     private final FacultyCycleRecordRepository facultyCycleRecordRepository;
     private final ProfessorRepository professorRepository;
     private final ReviewCycleDefinitionValidator definitionValidator;
+    private final ReviewCycleDefaultsProperties defaults;
     private final ReviewCycleJsonMapper jsonMapper;
 
     @Transactional(readOnly = true)
@@ -54,14 +57,18 @@ public class ReviewCycleAdminService {
         requireAdministrator(user);
         ReviewCycleDefinitionValidator.ValidatedReviewCycleDefinition definition =
                 definitionValidator.validate(request);
+        TemplateDefinition templateDefinition = templateDefinition();
         int revisionNumber = templateRepository.findMaximumRevisionNumber(definition.label()) + 1;
         AbetTemplate template = AbetTemplate.createDraft(
                 definition.label(),
-                definition.departmentName(),
+                definition.startDate(),
+                definition.endDate(),
+                definition.submissionDeadline(),
+                templateDefinition.departmentName(),
                 revisionNumber,
-                definition.requiredSections(),
-                definition.formattingRules(),
-                definition.renderingTemplateName());
+                templateDefinition.requiredSections(),
+                templateDefinition.formattingRules(),
+                templateDefinition.renderingTemplateName());
         return response(saveDraft(template), professorRepository.count());
     }
 
@@ -77,10 +84,13 @@ public class ReviewCycleAdminService {
         requireStatus(template, AbetTemplateStatus.DRAFT, "Only draft review cycles can be edited");
         template.updateDraft(
                 definition.label(),
-                definition.departmentName(),
-                definition.requiredSections(),
-                definition.formattingRules(),
-                definition.renderingTemplateName());
+                definition.startDate(),
+                definition.endDate(),
+                definition.submissionDeadline(),
+                template.getDepartmentName(),
+                template.getRequiredSections(),
+                template.getFormattingRules(),
+                template.getRenderingTemplateName());
         return response(saveDraft(template), professorRepository.count());
     }
 
@@ -149,6 +159,23 @@ public class ReviewCycleAdminService {
         }
     }
 
+    private TemplateDefinition templateDefinition() {
+        return templateRepository
+                .findFirstByStatusOrderByPublishedAtDescRevisionNumberDesc(
+                        AbetTemplateStatus.PUBLISHED)
+                .or(templateRepository::findFirstByOrderByReviewCycleDescRevisionNumberDesc)
+                .map(TemplateDefinition::from)
+                .orElseGet(() -> {
+                    ArrayNode sections = JsonNodeFactory.instance.arrayNode();
+                    defaults.requiredSections().forEach(section -> sections.add(section.name()));
+                    return new TemplateDefinition(
+                            defaults.departmentName(),
+                            sections,
+                            JsonNodeFactory.instance.objectNode(),
+                            defaults.renderingTemplateName());
+                });
+    }
+
     private AbetTemplate lockedTemplate(UUID templateId) {
         return templateRepository.findByIdForUpdate(templateId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -160,6 +187,9 @@ public class ReviewCycleAdminService {
         return new ReviewCycleResponse(
                 template.getId(),
                 template.getReviewCycle(),
+                template.getReviewStartDate(),
+                template.getReviewEndDate(),
+                template.getSubmissionDeadline(),
                 template.getDepartmentName(),
                 template.getRevisionNumber(),
                 template.getStatus(),
@@ -194,5 +224,20 @@ public class ReviewCycleAdminService {
 
     private static ResponseStatusException conflict(String reason, Throwable cause) {
         return new ResponseStatusException(HttpStatus.CONFLICT, reason, cause);
+    }
+
+    private record TemplateDefinition(
+            String departmentName,
+            JsonNode requiredSections,
+            JsonNode formattingRules,
+            String renderingTemplateName) {
+
+        private static TemplateDefinition from(AbetTemplate template) {
+            return new TemplateDefinition(
+                    template.getDepartmentName(),
+                    template.getRequiredSections(),
+                    template.getFormattingRules(),
+                    template.getRenderingTemplateName());
+        }
     }
 }
