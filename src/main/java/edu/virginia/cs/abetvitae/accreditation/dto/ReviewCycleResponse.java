@@ -3,6 +3,7 @@ package edu.virginia.cs.abetvitae.accreditation.dto;
 import edu.virginia.cs.abetvitae.accreditation.model.AbetTemplateStatus;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -10,6 +11,9 @@ import java.util.UUID;
 public record ReviewCycleResponse(
         UUID id,
         String label,
+        LocalDate startDate,
+        LocalDate endDate,
+        LocalDate submissionDeadline,
         String departmentName,
         int revisionNumber,
         AbetTemplateStatus status,
