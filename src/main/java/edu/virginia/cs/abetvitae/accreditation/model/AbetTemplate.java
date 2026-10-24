@@ -13,16 +13,15 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
@@ -66,4 +65,61 @@ public class AbetTemplate {
 
     @Column(name = "published_at")
     private Instant publishedAt;
+
+    public static AbetTemplate createDraft(
+            String reviewCycle,
+            String departmentName,
+            int revisionNumber,
+            JsonNode requiredSections,
+            JsonNode formattingRules,
+            String renderingTemplateName) {
+        AbetTemplate template = new AbetTemplate();
+        template.reviewCycle = reviewCycle;
+        template.departmentName = departmentName;
+        template.revisionNumber = revisionNumber;
+        template.requiredSections = requiredSections.deepCopy();
+        template.formattingRules = formattingRules.deepCopy();
+        template.renderingTemplateName = renderingTemplateName;
+        return template;
+    }
+
+    public void updateDraft(
+            String reviewCycle,
+            String departmentName,
+            JsonNode requiredSections,
+            JsonNode formattingRules,
+            String renderingTemplateName) {
+        requireStatus(AbetTemplateStatus.DRAFT);
+        this.reviewCycle = reviewCycle;
+        this.departmentName = departmentName;
+        this.requiredSections = requiredSections.deepCopy();
+        this.formattingRules = formattingRules.deepCopy();
+        this.renderingTemplateName = renderingTemplateName;
+    }
+
+    public void publish(Instant publicationTime) {
+        requireStatus(AbetTemplateStatus.DRAFT);
+        status = AbetTemplateStatus.PUBLISHED;
+        publishedAt = Objects.requireNonNull(publicationTime);
+    }
+
+    public void retire() {
+        requireStatus(AbetTemplateStatus.PUBLISHED);
+        status = AbetTemplateStatus.RETIRED;
+    }
+
+    public JsonNode getRequiredSections() {
+        return requiredSections.deepCopy();
+    }
+
+    public JsonNode getFormattingRules() {
+        return formattingRules.deepCopy();
+    }
+
+    private void requireStatus(AbetTemplateStatus expected) {
+        if (status != expected) {
+            throw new IllegalStateException(
+                    "Expected template status " + expected + " but was " + status);
+        }
+    }
 }

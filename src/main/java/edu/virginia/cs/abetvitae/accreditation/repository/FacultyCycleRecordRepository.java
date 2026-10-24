@@ -17,6 +17,8 @@ public interface FacultyCycleRecordRepository extends JpaRepository<FacultyCycle
             UUID professorId,
             UUID abetTemplateId);
 
+    long countByAbetTemplateId(UUID abetTemplateId);
+
     @EntityGraph(attributePaths = "professor")
     List<FacultyCycleRecord> findAllByAbetTemplateId(UUID abetTemplateId);
 
