@@ -62,4 +62,10 @@ public class ProcessingJob {
     @Version
     @Column(name = "lock_version", nullable = false)
     private long lockVersion;
+
+    public static ProcessingJob create(CvUpload cvUpload) {
+        ProcessingJob job = new ProcessingJob();
+        job.cvUpload = cvUpload;
+        return job;
+    }
 }
