@@ -72,4 +72,27 @@ public class CvUpload {
 
     @Column(name = "purged_at")
     private Instant purgedAt;
+
+    public static CvUpload create(
+            FacultyCycleRecord facultyCycleRecord,
+            UserAccount uploadedByUser,
+            String originalFilename,
+            String temporaryStorageKey,
+            String detectedMimeType,
+            long fileSizeBytes,
+            String fileSha256,
+            Instant expiresAt) {
+
+        CvUpload upload = new CvUpload();
+        upload.facultyCycleRecord = facultyCycleRecord;
+        upload.uploadedByUser = uploadedByUser;
+        upload.originalFilename = originalFilename;
+        upload.temporaryStorageKey = temporaryStorageKey;
+        upload.detectedMimeType = detectedMimeType;
+        upload.fileSizeBytes = fileSizeBytes;
+        upload.fileSha256 = fileSha256;
+        upload.expiresAt = expiresAt;
+
+        return upload;
+    }
 }
