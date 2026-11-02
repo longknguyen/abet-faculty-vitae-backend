@@ -12,7 +12,7 @@ import java.util.HexFormat;
 import java.util.UUID;
 import java.nio.file.attribute.PosixFilePermissions;
 
-public class FileSystemPrivateCvStorage implements PrivateCvStorage {
+public final class FileSystemPrivateCvStorage implements PrivateCvStorage {
     private final Path storageDirectory;
 
     public FileSystemPrivateCvStorage(String storageDirectory)
@@ -51,7 +51,7 @@ public class FileSystemPrivateCvStorage implements PrivateCvStorage {
         String storageKey = UUID.randomUUID().toString();
         Path target = storageDirectory.resolve(storageKey).normalize();
 
-        if (!target.getParent().equals(storageDirectory)) {
+        if (!storageDirectory.equals(target.getParent())) {
             throw new IOException("Invalid storage path");
         }
 
@@ -108,7 +108,7 @@ public class FileSystemPrivateCvStorage implements PrivateCvStorage {
 
         Path target = storageDirectory.resolve(storageKey).normalize();
 
-        if (!target.getParent().equals(storageDirectory)) {
+        if (!storageDirectory.equals(target.getParent())) {
             throw new IOException("Invalid storage path");
         }
 
