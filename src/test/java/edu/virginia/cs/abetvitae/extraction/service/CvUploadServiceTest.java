@@ -14,6 +14,7 @@ import edu.virginia.cs.abetvitae.accreditation.repository.AbetTemplateRepository
 import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepository;
 import edu.virginia.cs.abetvitae.extraction.storage.PrivateCvStorage;
 import edu.virginia.cs.abetvitae.faculty.repository.ProfessorRepository;
+import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -60,7 +61,15 @@ class CvUploadServiceTest {
                 abetTemplateRepository,
                 facultyCycleRecordRepository,
                 privateCvStorage,
-                persistenceService
+                persistenceService,
+                new CvDocumentInspector(new CvUploadProperties(
+                        10 * 1024 * 1024,
+                        Duration.ofDays(90)
+                )),
+                new CvUploadProperties(
+                        10 * 1024 * 1024,
+                        Duration.ofDays(90)
+                )
         );
 
         assertThatThrownBy(() -> service.uploadCv(authentication, file))

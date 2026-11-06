@@ -21,7 +21,7 @@ public class CvUploadPersistenceService {
     private final ProcessingJobRepository processingJobRepository;
 
     @Transactional
-    public CvUpload saveUploadAndQueueJob(
+    public CvUploadReceipt saveUploadAndQueueJob(
             FacultyCycleRecord facultyCycleRecord,
             UserAccount uploadedByUser,
             String originalFilename,
@@ -43,8 +43,8 @@ public class CvUploadPersistenceService {
         CvUpload savedUpload = cvUploadRepository.save(upload);
 
         ProcessingJob job = ProcessingJob.create(savedUpload);
-        processingJobRepository.save(job);
+        ProcessingJob savedJob = processingJobRepository.save(job);
 
-        return savedUpload;
+        return new CvUploadReceipt(savedUpload, savedJob);
     }
 }

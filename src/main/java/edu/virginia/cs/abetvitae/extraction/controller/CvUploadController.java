@@ -1,6 +1,9 @@
 package edu.virginia.cs.abetvitae.extraction.controller;
 
 import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
+import edu.virginia.cs.abetvitae.extraction.model.ProcessingJob;
+import edu.virginia.cs.abetvitae.extraction.model.ProcessingJobStatus;
+import edu.virginia.cs.abetvitae.extraction.service.CvUploadReceipt;
 import edu.virginia.cs.abetvitae.extraction.service.CvUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,13 +30,17 @@ public class CvUploadController {
             Authentication authentication,
             @RequestPart("file") MultipartFile file
     ) {
-        CvUpload upload = cvUploadService.uploadCv(
+        CvUploadReceipt receipt = cvUploadService.uploadCv(
                 authentication,
                 file
         );
+        CvUpload upload = receipt.upload();
+        ProcessingJob processingJob = receipt.processingJob();
 
         CvUploadResponse response = new CvUploadResponse(
                 upload.getId(),
+                processingJob.getId(),
+                processingJob.getStatus(),
                 upload.getOriginalFilename(),
                 upload.getDetectedMimeType(),
                 upload.getFileSizeBytes(),
@@ -47,6 +54,8 @@ public class CvUploadController {
 
     public record CvUploadResponse(
             UUID id,
+            UUID processingJobId,
+            ProcessingJobStatus processingStatus,
             String originalFilename,
             String detectedMimeType,
             long fileSizeBytes,

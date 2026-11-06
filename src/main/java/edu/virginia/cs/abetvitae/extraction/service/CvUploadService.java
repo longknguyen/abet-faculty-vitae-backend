@@ -10,13 +10,11 @@ import edu.virginia.cs.abetvitae.accreditation.model.AbetTemplateStatus;
 import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
 import edu.virginia.cs.abetvitae.accreditation.repository.AbetTemplateRepository;
 import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepository;
-import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
 import edu.virginia.cs.abetvitae.extraction.storage.PrivateCvStorage;
 import edu.virginia.cs.abetvitae.extraction.storage.StoredCvFile;
 import edu.virginia.cs.abetvitae.faculty.model.Professor;
 import edu.virginia.cs.abetvitae.faculty.repository.ProfessorRepository;
 import lombok.RequiredArgsConstructor;
-import org.apache.tika.Tika;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -25,17 +23,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class CvUploadService {
-
-    private static final Set<String> ALLOWED_EXTENSIONS =
-            Set.of(".pdf", ".docx");
-
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
 
     private final AuthenticatedUserService authenticatedUserService;
     private final UserAccountRepository userAccountRepository;
@@ -44,10 +35,10 @@ public class CvUploadService {
     private final FacultyCycleRecordRepository facultyCycleRecordRepository;
     private final PrivateCvStorage privateCvStorage;
     private final CvUploadPersistenceService cvUploadPersistenceService;
+    private final CvDocumentInspector documentInspector;
+    private final CvUploadProperties uploadProperties;
 
-    private final Tika tika = new Tika();
-
-    public CvUpload uploadCv(
+    public CvUploadReceipt uploadCv(
             Authentication authentication,
             MultipartFile file
     ) {
@@ -60,23 +51,22 @@ public class CvUploadService {
         FacultyCycleRecord facultyCycleRecord =
                 requireFacultyCycleRecord(professor, template);
 
-        // 3. Validate the uploaded file.
-        validateFileSize(file);
-        String originalFilename = validateFileExtension(file);
-        String detectedMimeType = detectMimeType(file);
-
-        validateDetectedMimeType(originalFilename, detectedMimeType);
+        // 3. Perform bounded screening without parsing the untrusted document.
+        InspectedCvDocument inspectedDocument = documentInspector.inspect(file);
 
         // 4. Store the file privately.
-        StoredCvFile storedFile = storeFile(file, detectedMimeType);
+        StoredCvFile storedFile = storeFile(
+                file,
+                inspectedDocument.mediaType()
+        );
 
         // 5. Save the upload and processing job together.
         try {
             return cvUploadPersistenceService.saveUploadAndQueueJob(
                     facultyCycleRecord,
                     account,
-                    originalFilename,
-                    detectedMimeType,
+                    inspectedDocument.filename(),
+                    inspectedDocument.mediaType(),
                     storedFile,
                     calculateExpirationDate()
             );
@@ -141,88 +131,6 @@ public class CvUploadService {
                 ));
     }
 
-    private void validateFileSize(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Please select a file to upload."
-            );
-        }
-
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException(
-                    "The uploaded file exceeds the 10 MB limit."
-            );
-        }
-    }
-
-    private String validateFileExtension(MultipartFile file) {
-        String filename = file.getOriginalFilename();
-
-        if (filename == null || filename.isBlank()) {
-            throw new IllegalArgumentException(
-                    "The uploaded file must have a filename."
-            );
-        }
-
-        String normalizedFilename = filename.toLowerCase();
-        int lastDot = normalizedFilename.lastIndexOf('.');
-
-        if (lastDot < 0) {
-            throw new IllegalArgumentException(
-                    "Only PDF and DOCX files are allowed."
-            );
-        }
-
-        String extension = normalizedFilename.substring(lastDot);
-
-        if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException(
-                    "Only PDF and DOCX files are allowed."
-            );
-        }
-
-        if (filename.length() > 255) {
-            throw new IllegalArgumentException(
-                    "The filename must be 255 characters or fewer."
-            );
-        }
-
-        return filename;
-    }
-
-    private String detectMimeType(MultipartFile file) {
-        try (InputStream inputStream = file.getInputStream()) {
-            return tika.detect(inputStream, file.getOriginalFilename());
-        } catch (IOException exception) {
-            throw new IllegalArgumentException(
-                    "Unable to inspect the uploaded file.",
-                    exception
-            );
-        }
-    }
-
-    private void validateDetectedMimeType(
-            String filename,
-            String detectedMimeType
-    ) {
-        String normalizedFilename = filename.toLowerCase();
-
-        if (normalizedFilename.endsWith(".pdf")
-                && !"application/pdf".equals(detectedMimeType)) {
-            throw new IllegalArgumentException(
-                    "The uploaded file does not appear to be a valid PDF."
-            );
-        }
-
-        if (normalizedFilename.endsWith(".docx")
-                && !"application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                .equals(detectedMimeType)) {
-            throw new IllegalArgumentException(
-                    "The uploaded file does not appear to be a valid DOCX file."
-            );
-        }
-    }
-
     private StoredCvFile storeFile(
             MultipartFile file,
             String detectedMimeType
@@ -230,18 +138,15 @@ public class CvUploadService {
         try (InputStream inputStream = file.getInputStream()) {
             return privateCvStorage.store(
                     inputStream,
-                    MAX_FILE_SIZE,
+                    uploadProperties.maximumFileSizeBytes(),
                     detectedMimeType
             );
         } catch (IOException exception) {
-            throw new IllegalStateException(
-                    "Unable to store the uploaded CV.",
-                    exception
-            );
+            throw CvUploadRejectedException.storageUnavailable(exception);
         }
     }
 
     private Instant calculateExpirationDate() {
-        return Instant.now().plus(90, ChronoUnit.DAYS);
+        return Instant.now().plus(uploadProperties.retentionPeriod());
     }
 }
