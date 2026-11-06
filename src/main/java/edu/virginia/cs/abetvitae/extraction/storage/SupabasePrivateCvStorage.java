@@ -14,7 +14,7 @@ import java.util.UUID;
 import java.io.ByteArrayOutputStream;
 import java.time.Duration;
 
-public class SupabasePrivateCvStorage implements PrivateCvStorage {
+public final class SupabasePrivateCvStorage implements PrivateCvStorage {
 
     private final String supabaseUrl;
     private final String secretKey;

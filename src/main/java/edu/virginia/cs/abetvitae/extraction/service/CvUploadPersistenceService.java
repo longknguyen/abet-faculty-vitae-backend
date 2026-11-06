@@ -47,8 +47,18 @@ public class CvUploadPersistenceService {
 
         ProcessingJob job = ProcessingJob.create(savedUpload);
         ProcessingJob savedJob = processingJobRepository.save(job);
-        outboxRepository.save(CvProcessingOutboxMessage.create(savedJob));
+        outboxRepository.saveAndFlush(
+                CvProcessingOutboxMessage.create(savedJob)
+        );
 
-        return new CvUploadReceipt(savedUpload, savedJob);
+        return new CvUploadReceipt(
+                savedUpload.getId(),
+                savedJob.getId(),
+                savedJob.getStatus(),
+                savedUpload.getOriginalFilename(),
+                savedUpload.getDetectedMimeType(),
+                savedUpload.getFileSizeBytes(),
+                savedUpload.getUploadedAt()
+        );
     }
 }

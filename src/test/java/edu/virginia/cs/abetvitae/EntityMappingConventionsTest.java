@@ -28,6 +28,7 @@ class EntityMappingConventionsTest {
             "FacultyCycleRecord",
             "ExtractionReview",
             "ExtractionReviewItem",
+            "CvProcessingOutboxMessage",
             "ProcessingJob"
     );
 

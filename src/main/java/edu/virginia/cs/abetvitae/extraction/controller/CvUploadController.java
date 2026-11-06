@@ -1,7 +1,5 @@
 package edu.virginia.cs.abetvitae.extraction.controller;
 
-import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
-import edu.virginia.cs.abetvitae.extraction.model.ProcessingJob;
 import edu.virginia.cs.abetvitae.extraction.model.ProcessingJobStatus;
 import edu.virginia.cs.abetvitae.extraction.service.CvUploadReceipt;
 import edu.virginia.cs.abetvitae.extraction.service.CvUploadService;
@@ -34,17 +32,14 @@ public class CvUploadController {
                 authentication,
                 file
         );
-        CvUpload upload = receipt.upload();
-        ProcessingJob processingJob = receipt.processingJob();
-
         CvUploadResponse response = new CvUploadResponse(
-                upload.getId(),
-                processingJob.getId(),
-                processingJob.getStatus(),
-                upload.getOriginalFilename(),
-                upload.getDetectedMimeType(),
-                upload.getFileSizeBytes(),
-                upload.getUploadedAt()
+                receipt.uploadId(),
+                receipt.processingJobId(),
+                receipt.processingStatus(),
+                receipt.originalFilename(),
+                receipt.detectedMimeType(),
+                receipt.fileSizeBytes(),
+                receipt.uploadedAt()
         );
 
         return ResponseEntity
