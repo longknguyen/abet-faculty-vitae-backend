@@ -33,6 +33,24 @@ services:
     mem_limit: '4g'
     cpus: 1.0
     restart: unless-stopped
+  rabbitmq:
+    image: 'rabbitmq:4.2-management-alpine'
+    profiles:
+      - 'processing'
+    environment:
+      RABBITMQ_DEFAULT_USER: 'vitae'
+      RABBITMQ_DEFAULT_PASS: 'vitae-local-only'
+    ports:
+      - '127.0.0.1:5672:5672'
+      - '127.0.0.1:15672:15672'
+    volumes:
+      - 'rabbitmq-data:/var/lib/rabbitmq'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
   postgres:
     image: 'postgres:latest'
     environment:
@@ -43,6 +61,7 @@ services:
       - '5432'
 volumes:
   clamav-signatures:
+  rabbitmq-data:
 
 networks:
   parser-isolated:
