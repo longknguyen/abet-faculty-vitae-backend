@@ -80,4 +80,106 @@ public class ExtractionRun {
 
     @Column(name = "payload_purged_at")
     private Instant payloadPurgedAt;
+
+    @Column(name = "parser_name", length = 100)
+    private String parserName;
+
+    @Column(name = "parser_media_type", length = 100)
+    private String parserMediaType;
+
+    @Column(name = "mapper_name", length = 100)
+    private String mapperName;
+
+    @Column(name = "mapper_version", length = 50)
+    private String mapperVersion;
+
+    @Column(name = "model_provider", length = 100)
+    private String modelProvider;
+
+    @Column(name = "model_name", length = 200)
+    private String modelName;
+
+    @Column(name = "mapping_completed_at")
+    private Instant mappingCompletedAt;
+
+    public static ExtractionRun start(
+            ProcessingJob processingJob,
+            int runNumber,
+            Instant payloadExpiresAt
+    ) {
+        if (runNumber < 1) {
+            throw new IllegalArgumentException("Run number must be positive");
+        }
+        ExtractionRun run = new ExtractionRun();
+        run.processingJob = java.util.Objects.requireNonNull(processingJob);
+        run.runNumber = runNumber;
+        run.status = ExtractionRunStatus.RUNNING;
+        run.payloadExpiresAt = payloadExpiresAt;
+        return run;
+    }
+
+    public void completeTextExtraction(String text, Instant now) {
+        if (status != ExtractionRunStatus.RUNNING) {
+            throw new IllegalStateException("Only a running extraction can complete");
+        }
+        extractedText = java.util.Objects.requireNonNull(text);
+        status = ExtractionRunStatus.SUCCEEDED;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = null;
+    }
+
+    public void recordMapping(
+            JsonNode output,
+            String parser,
+            String mediaType,
+            String mapper,
+            String mapperRevision,
+            String provider,
+            String model,
+            Instant now
+    ) {
+        if (status != ExtractionRunStatus.SUCCEEDED) {
+            throw new IllegalStateException(
+                    "Text extraction must succeed before mapping is recorded"
+            );
+        }
+        structuredOutput = java.util.Objects.requireNonNull(output).deepCopy();
+        parserName = requireBounded(parser, 100, "Parser name");
+        parserMediaType = requireBounded(mediaType, 100, "Parser media type");
+        mapperName = requireBounded(mapper, 100, "Mapper name");
+        mapperVersion = requireBounded(mapperRevision, 50, "Mapper version");
+        modelProvider = optionalBounded(provider, 100, "Model provider");
+        modelName = optionalBounded(model, 200, "Model name");
+        mappingCompletedAt = java.util.Objects.requireNonNull(now);
+    }
+
+    public void fail(String safeErrorMessage, Instant now) {
+        status = ExtractionRunStatus.FAILED;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = java.util.Objects.requireNonNull(safeErrorMessage);
+        extractedText = null;
+        structuredOutput = null;
+    }
+
+    private static String requireBounded(
+            String value,
+            int maximumLength,
+            String name
+    ) {
+        if (value == null || value.isBlank() || value.length() > maximumLength) {
+            throw new IllegalArgumentException(name + " is invalid");
+        }
+        return value;
+    }
+
+    private static String optionalBounded(
+            String value,
+            int maximumLength,
+            String name
+    ) {
+        if (value == null) {
+            return null;
+        }
+        return requireBounded(value, maximumLength, name);
+    }
 }

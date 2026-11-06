@@ -62,4 +62,48 @@ public class ProcessingJob {
     @Version
     @Column(name = "lock_version", nullable = false)
     private long lockVersion;
+
+    public static ProcessingJob create(CvUpload cvUpload) {
+        ProcessingJob job = new ProcessingJob();
+        job.cvUpload = cvUpload;
+        return job;
+    }
+
+    public void start(Instant now) {
+        status = ProcessingJobStatus.RUNNING;
+        currentStage = ProcessingStage.VALIDATING;
+        startedAt = java.util.Objects.requireNonNull(now);
+        completedAt = null;
+        errorMessage = null;
+    }
+
+    public void advanceTo(ProcessingStage stage) {
+        if (status != ProcessingJobStatus.RUNNING) {
+            throw new IllegalStateException("Only a running job can advance");
+        }
+        currentStage = java.util.Objects.requireNonNull(stage);
+    }
+
+    public void fail(Instant now, String safeErrorMessage) {
+        status = ProcessingJobStatus.FAILED;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = java.util.Objects.requireNonNull(safeErrorMessage);
+    }
+
+    public void complete(Instant now) {
+        if (status != ProcessingJobStatus.RUNNING) {
+            throw new IllegalStateException("Only a running job can complete");
+        }
+        status = ProcessingJobStatus.SUCCEEDED;
+        currentStage = ProcessingStage.COMPLETE;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = null;
+    }
+
+    public boolean hasReachedStructuredMapping() {
+        return status == ProcessingJobStatus.SUCCEEDED
+                || currentStage == ProcessingStage.STRUCTURING_WITH_AI
+                || currentStage == ProcessingStage.CREATING_REVIEW
+                || currentStage == ProcessingStage.COMPLETE;
+    }
 }

@@ -14,4 +14,9 @@ public interface ExtractionReviewRepository extends JpaRepository<ExtractionRevi
     Optional<ExtractionReview> findFirstByExtractionRunProcessingJobCvUploadFacultyCycleRecordIdAndStatusOrderByCreatedAtDesc(
             UUID facultyCycleRecordId,
             ExtractionReviewStatus status);
+
+    boolean existsByFacultyCycleRecordIdAndStatus(
+            UUID facultyCycleRecordId,
+            ExtractionReviewStatus status
+    );
 }
