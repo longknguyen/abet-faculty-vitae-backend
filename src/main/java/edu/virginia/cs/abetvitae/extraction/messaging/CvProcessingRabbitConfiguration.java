@@ -9,10 +9,16 @@ import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
+import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.retry.MessageRecoverer;
+import org.springframework.boot.amqp.autoconfigure.SimpleRabbitListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.aopalliance.intercept.MethodInterceptor;
 
 @Configuration
 @EnableRabbit
@@ -62,5 +68,34 @@ public class CvProcessingRabbitConfiguration {
                 deadLetterBinding
         );
         return new Declarables(declarables);
+    }
+
+    @Bean
+    MethodInterceptor cvProcessingRetryInterceptor(
+            CvProcessingProperties properties,
+            MessageRecoverer cvProcessingDeadLetterRecoverer
+    ) {
+        return RetryInterceptorBuilder.stateless()
+                .configureRetryPolicy(policy -> policy
+                        .maxRetries(properties.maximumAttempts() - 1L)
+                        .includes(CvProcessingRetryableException.class)
+                        .delay(properties.initialRetryInterval())
+                        .multiplier(properties.retryMultiplier())
+                        .maxDelay(properties.maximumRetryInterval()))
+                .recoverer(cvProcessingDeadLetterRecoverer)
+                .build();
+    }
+
+    @Bean
+    SimpleRabbitListenerContainerFactory cvProcessingListenerContainerFactory(
+            SimpleRabbitListenerContainerFactoryConfigurer configurer,
+            ConnectionFactory connectionFactory,
+            MethodInterceptor cvProcessingRetryInterceptor
+    ) {
+        SimpleRabbitListenerContainerFactory factory =
+                new SimpleRabbitListenerContainerFactory();
+        configurer.configure(factory, connectionFactory);
+        factory.setAdviceChain(cvProcessingRetryInterceptor);
+        return factory;
     }
 }
