@@ -3,8 +3,10 @@ package edu.virginia.cs.abetvitae.extraction.service;
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
 import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
 import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
+import edu.virginia.cs.abetvitae.extraction.model.CvProcessingOutboxMessage;
 import edu.virginia.cs.abetvitae.extraction.model.ProcessingJob;
 import edu.virginia.cs.abetvitae.extraction.repository.CvUploadRepository;
+import edu.virginia.cs.abetvitae.extraction.repository.CvProcessingOutboxRepository;
 import edu.virginia.cs.abetvitae.extraction.repository.ProcessingJobRepository;
 import edu.virginia.cs.abetvitae.extraction.storage.StoredCvFile;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ public class CvUploadPersistenceService {
 
     private final CvUploadRepository cvUploadRepository;
     private final ProcessingJobRepository processingJobRepository;
+    private final CvProcessingOutboxRepository outboxRepository;
 
     @Transactional
     public CvUploadReceipt saveUploadAndQueueJob(
@@ -44,6 +47,7 @@ public class CvUploadPersistenceService {
 
         ProcessingJob job = ProcessingJob.create(savedUpload);
         ProcessingJob savedJob = processingJobRepository.save(job);
+        outboxRepository.save(CvProcessingOutboxMessage.create(savedJob));
 
         return new CvUploadReceipt(savedUpload, savedJob);
     }
