@@ -12,6 +12,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
+import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
+import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepository;
+import edu.virginia.cs.abetvitae.extraction.mapping.CvStructuredMapper;
+import edu.virginia.cs.abetvitae.extraction.mapping.MappedReviewSection;
+import edu.virginia.cs.abetvitae.extraction.mapping.MappingProvenance;
+import edu.virginia.cs.abetvitae.extraction.mapping.StructuredCvDraft;
+import edu.virginia.cs.abetvitae.extraction.mapping.StructuredDraftPersistenceService;
 import edu.virginia.cs.abetvitae.extraction.model.ExtractionRun;
 import edu.virginia.cs.abetvitae.extraction.model.ExtractionRunStatus;
 import edu.virginia.cs.abetvitae.extraction.model.ProcessingJob;
@@ -25,6 +32,7 @@ import edu.virginia.cs.abetvitae.extraction.scanning.MalwareDetectedException;
 import edu.virginia.cs.abetvitae.extraction.service.CvUploadProperties;
 import edu.virginia.cs.abetvitae.extraction.service.SecureCvTextExtractionService;
 import edu.virginia.cs.abetvitae.extraction.storage.PrivateCvStorage;
+import edu.virginia.cs.abetvitae.review.model.ReviewSectionType;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -32,6 +40,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,8 +57,11 @@ class CvProcessingServiceTest {
 
     private ProcessingJobRepository jobRepository;
     private ExtractionRunRepository runRepository;
+    private FacultyCycleRecordRepository facultyCycleRecordRepository;
     private PrivateCvStorage storage;
     private SecureCvTextExtractionService extractionService;
+    private CvStructuredMapper structuredMapper;
+    private StructuredDraftPersistenceService draftPersistenceService;
     private ProcessingJob job;
     private CvUpload upload;
     private CvProcessingService service;
@@ -57,8 +70,11 @@ class CvProcessingServiceTest {
     void setUp() throws Exception {
         jobRepository = mock(ProcessingJobRepository.class);
         runRepository = mock(ExtractionRunRepository.class);
+        facultyCycleRecordRepository = mock(FacultyCycleRecordRepository.class);
         storage = mock(PrivateCvStorage.class);
         extractionService = mock(SecureCvTextExtractionService.class);
+        structuredMapper = mock(CvStructuredMapper.class);
+        draftPersistenceService = mock(StructuredDraftPersistenceService.class);
         job = mock(ProcessingJob.class);
         upload = mock(CvUpload.class);
 
@@ -79,6 +95,13 @@ class CvProcessingServiceTest {
         when(upload.getFileSha256()).thenReturn(sha256(CONTENT));
         when(upload.getOriginalFilename()).thenReturn("faculty-vitae.pdf");
         when(upload.getExpiresAt()).thenReturn(Instant.now().plus(Duration.ofDays(1)));
+        FacultyCycleRecord facultyCycleRecord = mock(FacultyCycleRecord.class);
+        UUID facultyCycleRecordId = UUID.randomUUID();
+        when(facultyCycleRecord.getId()).thenReturn(facultyCycleRecordId);
+        when(upload.getFacultyCycleRecord()).thenReturn(facultyCycleRecord);
+        when(facultyCycleRecordRepository.findByIdForUpdate(facultyCycleRecordId))
+                .thenReturn(Optional.of(facultyCycleRecord));
+        when(structuredMapper.map(any())).thenReturn(draft());
         when(storage.copyTo(
                 eq(upload.getTemporaryStorageKey()),
                 any(OutputStream.class),
@@ -91,8 +114,11 @@ class CvProcessingServiceTest {
         service = new CvProcessingService(
                 jobRepository,
                 runRepository,
+                facultyCycleRecordRepository,
                 storage,
                 extractionService,
+                structuredMapper,
+                draftPersistenceService,
                 new CvUploadProperties(1024, Duration.ofDays(90))
         );
     }
@@ -122,6 +148,8 @@ class CvProcessingServiceTest {
                 eq("faculty-vitae.pdf")
         );
         order.verify(job).advanceTo(ProcessingStage.STRUCTURING_WITH_AI);
+        verify(job).advanceTo(ProcessingStage.CREATING_REVIEW);
+        verify(job).complete(any(Instant.class));
 
         ArgumentCaptor<ExtractionRun> runCaptor =
                 ArgumentCaptor.forClass(ExtractionRun.class);
@@ -193,6 +221,23 @@ class CvProcessingServiceTest {
     private static String sha256(byte[] content) throws Exception {
         return HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA-256").digest(content)
+        );
+    }
+
+    private static StructuredCvDraft draft() {
+        List<MappedReviewSection> sections = Arrays.stream(
+                        ReviewSectionType.values()
+                )
+                .map(sectionType -> new MappedReviewSection(
+                        sectionType,
+                        null,
+                        List.of(),
+                        sectionType.ordinal()
+                ))
+                .toList();
+        return new StructuredCvDraft(
+                sections,
+                new MappingProvenance("test-mapper", "1", null, null)
         );
     }
 }

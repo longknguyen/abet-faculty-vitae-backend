@@ -1,6 +1,13 @@
 package edu.virginia.cs.abetvitae.extraction.messaging;
 
 import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
+import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
+import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepository;
+import edu.virginia.cs.abetvitae.extraction.mapping.CvMappingException;
+import edu.virginia.cs.abetvitae.extraction.mapping.CvStructuredMapper;
+import edu.virginia.cs.abetvitae.extraction.mapping.MappedReviewSection;
+import edu.virginia.cs.abetvitae.extraction.mapping.StructuredCvDraft;
+import edu.virginia.cs.abetvitae.extraction.mapping.StructuredDraftPersistenceService;
 import edu.virginia.cs.abetvitae.extraction.model.ExtractionRun;
 import edu.virginia.cs.abetvitae.extraction.model.ExtractionRunStatus;
 import edu.virginia.cs.abetvitae.extraction.model.ProcessingJob;
@@ -28,6 +35,9 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.UUID;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -58,11 +68,17 @@ class CvProcessingService {
             "No readable text was found in the uploaded CV.";
     private static final String MALFORMED_FAILURE =
             "The uploaded CV could not be read safely.";
+    private static final String MAPPING_FAILURE =
+            "The uploaded CV could not be organized automatically.";
+    private static final String PARSER_NAME = "isolated-parser-worker";
 
     private final ProcessingJobRepository processingJobRepository;
     private final ExtractionRunRepository extractionRunRepository;
+    private final FacultyCycleRecordRepository facultyCycleRecordRepository;
     private final PrivateCvStorage privateCvStorage;
     private final SecureCvTextExtractionService extractionService;
+    private final CvStructuredMapper structuredMapper;
+    private final StructuredDraftPersistenceService draftPersistenceService;
     private final CvUploadProperties uploadProperties;
 
     @Transactional
@@ -94,6 +110,28 @@ class CvProcessingService {
             Instant completedAt = Instant.now();
             run.completeTextExtraction(extracted.text(), completedAt);
             job.advanceTo(ProcessingStage.STRUCTURING_WITH_AI);
+            StructuredCvDraft draft = structuredMapper.map(extracted);
+            FacultyCycleRecord facultyCycleRecord = lockFacultyCycleRecord(
+                    job.getCvUpload()
+            );
+            job.advanceTo(ProcessingStage.CREATING_REVIEW);
+            draftPersistenceService.createDraft(
+                    run,
+                    facultyCycleRecord,
+                    job.getCvUpload().getUploadedByUser(),
+                    draft
+            );
+            run.recordMapping(
+                    structuredOutput(draft),
+                    PARSER_NAME,
+                    extracted.detectedMediaType(),
+                    draft.provenance().mapperName(),
+                    draft.provenance().mapperVersion(),
+                    draft.provenance().modelProvider(),
+                    draft.provenance().modelName(),
+                    Instant.now()
+            );
+            job.complete(Instant.now());
         } catch (MalwareDetectedException exception) {
             failPermanently(job, run, MALWARE_FAILURE);
         } catch (CvUploadIntegrityException exception) {
@@ -102,11 +140,29 @@ class CvProcessingService {
             handleScanningFailure(job, run, exception);
         } catch (CvTextExtractionException exception) {
             handleExtractionFailure(job, run, exception);
+        } catch (CvMappingException exception) {
+            failPermanently(job, run, MAPPING_FAILURE);
         } catch (IOException exception) {
             throw retryable("Private CV storage is unavailable", exception);
         } finally {
             deleteStagedFile(stagedFile);
         }
+    }
+
+    private FacultyCycleRecord lockFacultyCycleRecord(CvUpload upload) {
+        UUID facultyCycleRecordId = upload.getFacultyCycleRecord().getId();
+        return facultyCycleRecordRepository
+                .findByIdForUpdate(facultyCycleRecordId)
+                .orElseThrow(CvUploadIntegrityException::new);
+    }
+
+    private static ObjectNode structuredOutput(StructuredCvDraft draft) {
+        ObjectNode output = JsonNodeFactory.instance.objectNode();
+        for (MappedReviewSection section : draft.sections()) {
+            ArrayNode entries = output.putArray(section.sectionType().name());
+            section.entries().forEach(entries::add);
+        }
+        return output;
     }
 
     private boolean processingAlreadyCompleted(ProcessingJob job) {
