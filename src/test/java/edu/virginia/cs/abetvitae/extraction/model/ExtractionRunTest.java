@@ -49,4 +49,23 @@ class ExtractionRunTest {
         assertThat(run.getStructuredOutput()).isNull();
         assertThat(run.getPayloadPurgedAt()).isEqualTo(purgedAt);
     }
+
+    @Test
+    void textExtractionLifecycleUsesSafeStateTransitions() {
+        ProcessingJob processingJob = new ProcessingJob();
+        Instant expiresAt = Instant.parse("2026-11-06T12:00:00Z");
+        Instant completedAt = Instant.parse("2026-11-05T12:00:00Z");
+        ExtractionRun run = ExtractionRun.start(
+                processingJob,
+                1,
+                expiresAt
+        );
+
+        run.completeTextExtraction("Extracted CV text", completedAt);
+
+        assertThat(run.getStatus()).isEqualTo(ExtractionRunStatus.SUCCEEDED);
+        assertThat(run.getExtractedText()).isEqualTo("Extracted CV text");
+        assertThat(run.getCompletedAt()).isEqualTo(completedAt);
+        assertThat(run.getPayloadExpiresAt()).isEqualTo(expiresAt);
+    }
 }

@@ -80,4 +80,38 @@ public class ExtractionRun {
 
     @Column(name = "payload_purged_at")
     private Instant payloadPurgedAt;
+
+    public static ExtractionRun start(
+            ProcessingJob processingJob,
+            int runNumber,
+            Instant payloadExpiresAt
+    ) {
+        if (runNumber < 1) {
+            throw new IllegalArgumentException("Run number must be positive");
+        }
+        ExtractionRun run = new ExtractionRun();
+        run.processingJob = java.util.Objects.requireNonNull(processingJob);
+        run.runNumber = runNumber;
+        run.status = ExtractionRunStatus.RUNNING;
+        run.payloadExpiresAt = payloadExpiresAt;
+        return run;
+    }
+
+    public void completeTextExtraction(String text, Instant now) {
+        if (status != ExtractionRunStatus.RUNNING) {
+            throw new IllegalStateException("Only a running extraction can complete");
+        }
+        extractedText = java.util.Objects.requireNonNull(text);
+        status = ExtractionRunStatus.SUCCEEDED;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = null;
+    }
+
+    public void fail(String safeErrorMessage, Instant now) {
+        status = ExtractionRunStatus.FAILED;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = java.util.Objects.requireNonNull(safeErrorMessage);
+        extractedText = null;
+        structuredOutput = null;
+    }
 }
