@@ -90,6 +90,16 @@ public class ProcessingJob {
         errorMessage = java.util.Objects.requireNonNull(safeErrorMessage);
     }
 
+    public void complete(Instant now) {
+        if (status != ProcessingJobStatus.RUNNING) {
+            throw new IllegalStateException("Only a running job can complete");
+        }
+        status = ProcessingJobStatus.SUCCEEDED;
+        currentStage = ProcessingStage.COMPLETE;
+        completedAt = java.util.Objects.requireNonNull(now);
+        errorMessage = null;
+    }
+
     public boolean hasReachedStructuredMapping() {
         return status == ProcessingJobStatus.SUCCEEDED
                 || currentStage == ProcessingStage.STRUCTURING_WITH_AI

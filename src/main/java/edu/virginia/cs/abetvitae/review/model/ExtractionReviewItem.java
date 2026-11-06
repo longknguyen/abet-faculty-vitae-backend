@@ -67,4 +67,27 @@ public class ExtractionReviewItem {
     public JsonNode effectiveValue() {
         return editedValue != null ? editedValue : aiSuggestedValue;
     }
+
+    public static ExtractionReviewItem createSuggestion(
+            ExtractionReview review,
+            ReviewSectionType sectionType,
+            String sourceText,
+            JsonNode suggestedValue,
+            int displayOrder
+    ) {
+        if (displayOrder < 0) {
+            throw new IllegalArgumentException(
+                    "Review item display order cannot be negative"
+            );
+        }
+        ExtractionReviewItem item = new ExtractionReviewItem();
+        item.extractionReview = java.util.Objects.requireNonNull(review);
+        item.sectionType = java.util.Objects.requireNonNull(sectionType);
+        item.sourceText = sourceText;
+        item.aiSuggestedValue = java.util.Objects
+                .requireNonNull(suggestedValue)
+                .deepCopy();
+        item.displayOrder = displayOrder;
+        return item;
+    }
 }

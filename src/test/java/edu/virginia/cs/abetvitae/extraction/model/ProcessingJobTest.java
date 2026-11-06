@@ -43,4 +43,17 @@ class ProcessingJobTest {
         assertThat(job.getErrorMessage())
                 .isEqualTo("The CV could not be processed.");
     }
+
+    @Test
+    void completedJobReachesTerminalCompleteStage() {
+        ProcessingJob job = new ProcessingJob();
+        Instant completedAt = Instant.parse("2026-11-05T12:00:00Z");
+        job.start(completedAt.minusSeconds(5));
+
+        job.complete(completedAt);
+
+        assertThat(job.getStatus()).isEqualTo(ProcessingJobStatus.SUCCEEDED);
+        assertThat(job.getCurrentStage()).isEqualTo(ProcessingStage.COMPLETE);
+        assertThat(job.getCompletedAt()).isEqualTo(completedAt);
+    }
 }
