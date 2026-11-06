@@ -6,10 +6,12 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +39,8 @@ class SupabasePrivateCvStorageTest {
                             server.url("/").toString(),
                             secretKey,
                             bucketName,
-                            HttpClient.newHttpClient()
+                            HttpClient.newHttpClient(),
+                            Duration.ofSeconds(2)
                     );
 
             StoredCvFile storedFile = storage.store(
@@ -90,7 +93,8 @@ class SupabasePrivateCvStorageTest {
                             server.url("/").toString(),
                             "test-secret",
                             "faculty-cvs",
-                            HttpClient.newHttpClient()
+                            HttpClient.newHttpClient(),
+                            Duration.ofSeconds(2)
                     );
 
             assertDoesNotThrow(() -> storage.delete(storageKey));
@@ -115,6 +119,69 @@ class SupabasePrivateCvStorageTest {
     }
 
     @Test
+    void downloadsPrivateFileWithBoundedCopy() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            byte[] fileBytes = "private CV".getBytes(StandardCharsets.UTF_8);
+            server.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setBody(new okio.Buffer().write(fileBytes)));
+            String storageKey = UUID.randomUUID().toString();
+            SupabasePrivateCvStorage storage =
+                    new SupabasePrivateCvStorage(
+                            server.url("/").toString(),
+                            "test-secret",
+                            "faculty-cvs",
+                            HttpClient.newHttpClient(),
+                            Duration.ofSeconds(2)
+                    );
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+            long copiedBytes = storage.copyTo(storageKey, output, 1024);
+
+            assertEquals(fileBytes.length, copiedBytes);
+            assertArrayEquals(fileBytes, output.toByteArray());
+            RecordedRequest request = server.takeRequest(1, TimeUnit.SECONDS);
+            assertNotNull(request);
+            assertEquals("GET", request.getMethod());
+            assertEquals(
+                    "/storage/v1/object/authenticated/faculty-cvs/"
+                            + storageKey,
+                    request.getPath()
+            );
+            assertEquals(
+                    "Bearer test-secret",
+                    request.getHeader("Authorization")
+            );
+        }
+    }
+
+    @Test
+    void rejectsDownloadThatExceedsConfiguredLimit() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setBody("too many bytes"));
+            SupabasePrivateCvStorage storage =
+                    new SupabasePrivateCvStorage(
+                            server.url("/").toString(),
+                            "test-secret",
+                            "faculty-cvs",
+                            HttpClient.newHttpClient(),
+                            Duration.ofSeconds(2)
+                    );
+
+            assertThrows(
+                    IOException.class,
+                    () -> storage.copyTo(
+                            UUID.randomUUID().toString(),
+                            new ByteArrayOutputStream(),
+                            4
+                    )
+            );
+        }
+    }
+
+    @Test
     void throwsExceptionWhenSupabaseUploadFails() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(new MockResponse().setResponseCode(500));
@@ -124,7 +191,8 @@ class SupabasePrivateCvStorageTest {
                             server.url("/").toString(),
                             "test-secret",
                             "faculty-cvs",
-                            HttpClient.newHttpClient()
+                            HttpClient.newHttpClient(),
+                            Duration.ofSeconds(2)
                     );
 
             byte[] fileBytes = "test CV content".getBytes(StandardCharsets.UTF_8);

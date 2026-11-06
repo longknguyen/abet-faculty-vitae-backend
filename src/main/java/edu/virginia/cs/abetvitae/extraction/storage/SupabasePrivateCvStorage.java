@@ -2,6 +2,7 @@ package edu.virginia.cs.abetvitae.extraction.storage;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -11,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.UUID;
 import java.io.ByteArrayOutputStream;
+import java.time.Duration;
 
 public class SupabasePrivateCvStorage implements PrivateCvStorage {
 
@@ -19,17 +21,20 @@ public class SupabasePrivateCvStorage implements PrivateCvStorage {
     private final String bucketName;
 
     private final HttpClient httpClient;
+    private final Duration requestTimeout;
 
     public SupabasePrivateCvStorage(
             String supabaseUrl,
             String secretKey,
             String bucketName,
-            HttpClient httpClient
+            HttpClient httpClient,
+            Duration requestTimeout
     ) {
-        this.supabaseUrl = supabaseUrl.replaceAll("/+$", "");
-        this.secretKey = secretKey;
-        this.bucketName = bucketName;
-        this.httpClient = httpClient;
+        this.supabaseUrl = requireBaseUrl(supabaseUrl);
+        this.secretKey = requireValue(secretKey, "Supabase secret key");
+        this.bucketName = requireBucketName(bucketName);
+        this.httpClient = java.util.Objects.requireNonNull(httpClient);
+        this.requestTimeout = requirePositiveTimeout(requestTimeout);
     }
 
     @Override
@@ -91,6 +96,7 @@ public class SupabasePrivateCvStorage implements PrivateCvStorage {
                 .header("Authorization", "Bearer " + secretKey)
                 .header("Content-Type", contentType)
                 .header("x-upsert", "false")
+                .timeout(requestTimeout)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(fileBytes))
                 .build();
 
@@ -123,20 +129,55 @@ public class SupabasePrivateCvStorage implements PrivateCvStorage {
     }
 
     @Override
-    public void delete(String storageKey) throws IOException {
-        if (storageKey == null || !storageKey.matches("[a-f0-9-]{36}")) {
-            throw new IOException("Invalid storage key");
+    public long copyTo(
+            String storageKey,
+            OutputStream outputStream,
+            long maximumBytes
+    ) throws IOException {
+        validateStorageKey(storageKey);
+        URI downloadUri = URI.create(
+                supabaseUrl + "/storage/v1/object/authenticated/"
+                        + bucketName + "/" + storageKey
+        );
+        HttpRequest request = authenticatedRequest(downloadUri)
+                .GET()
+                .build();
+
+        try {
+            HttpResponse<InputStream> response = httpClient.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofInputStream()
+            );
+            try (InputStream responseBody = response.body()) {
+                if (response.statusCode() < 200
+                        || response.statusCode() >= 300) {
+                    throw new IOException(
+                            "Supabase download failed with status "
+                                    + response.statusCode()
+                    );
+                }
+                return StorageTransfer.copy(
+                        responseBody,
+                        outputStream,
+                        maximumBytes
+                );
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Supabase download was interrupted", exception);
         }
+    }
+
+    @Override
+    public void delete(String storageKey) throws IOException {
+        validateStorageKey(storageKey);
 
         URI deleteUri = URI.create(
                 supabaseUrl + "/storage/v1/object/"
                         + bucketName + "/" + storageKey
         );
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(deleteUri)
-                .header("apikey", secretKey)
-                .header("Authorization", "Bearer " + secretKey)
+        HttpRequest request = authenticatedRequest(deleteUri)
                 .DELETE()
                 .build();
 
@@ -157,5 +198,56 @@ public class SupabasePrivateCvStorage implements PrivateCvStorage {
             Thread.currentThread().interrupt();
             throw new IOException("Supabase deletion was interrupted", exception);
         }
+    }
+
+    private HttpRequest.Builder authenticatedRequest(URI uri) {
+        return HttpRequest.newBuilder()
+                .uri(uri)
+                .timeout(requestTimeout)
+                .header("apikey", secretKey)
+                .header("Authorization", "Bearer " + secretKey);
+    }
+
+    private static void validateStorageKey(String storageKey)
+            throws IOException {
+        if (storageKey == null || !storageKey.matches("[a-f0-9-]{36}")) {
+            throw new IOException("Invalid storage key");
+        }
+    }
+
+    private static String requireBaseUrl(String value) {
+        String baseUrl = requireValue(value, "Supabase URL")
+                .replaceAll("/+$", "");
+        URI uri = URI.create(baseUrl);
+        if (!("https".equalsIgnoreCase(uri.getScheme())
+                || "http".equalsIgnoreCase(uri.getScheme()))
+                || uri.getHost() == null) {
+            throw new IllegalArgumentException("Supabase URL is invalid");
+        }
+        return baseUrl;
+    }
+
+    private static String requireBucketName(String value) {
+        String bucket = requireValue(value, "Supabase bucket");
+        if (!bucket.matches("[A-Za-z0-9._-]+")) {
+            throw new IllegalArgumentException("Supabase bucket is invalid");
+        }
+        return bucket;
+    }
+
+    private static String requireValue(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + " must be configured");
+        }
+        return value;
+    }
+
+    private static Duration requirePositiveTimeout(Duration value) {
+        if (value == null || value.isZero() || value.isNegative()) {
+            throw new IllegalArgumentException(
+                    "Supabase request timeout must be positive"
+            );
+        }
+        return value;
     }
 }

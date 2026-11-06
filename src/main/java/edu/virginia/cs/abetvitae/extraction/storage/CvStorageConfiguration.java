@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import java.net.http.HttpClient;
+import java.time.Duration;
 
 import java.io.IOException;
 
@@ -31,13 +32,18 @@ public class CvStorageConfiguration {
     public PrivateCvStorage supabasePrivateCvStorage(
             @Value("${app.cv-storage.supabase.url}") String supabaseUrl,
             @Value("${app.cv-storage.supabase.secret-key}") String secretKey,
-            @Value("${app.cv-storage.supabase.bucket}") String bucketName
+            @Value("${app.cv-storage.supabase.bucket}") String bucketName,
+            @Value("${app.cv-storage.connect-timeout}") Duration connectTimeout,
+            @Value("${app.cv-storage.request-timeout}") Duration requestTimeout
     ) {
         return new SupabasePrivateCvStorage(
                 supabaseUrl,
                 secretKey,
                 bucketName,
-                HttpClient.newHttpClient()
+                HttpClient.newBuilder()
+                        .connectTimeout(connectTimeout)
+                        .build(),
+                requestTimeout
         );
     }
 }
