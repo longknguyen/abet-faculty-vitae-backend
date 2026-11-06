@@ -6,7 +6,7 @@ services:
     profiles:
       - 'parser'
     environment:
-      PARSER_WORKER_TOKEN: '${PARSER_WORKER_TOKEN:?Set PARSER_WORKER_TOKEN to at least 32 random characters}'
+      PARSER_WORKER_TOKEN: '${PARSER_WORKER_TOKEN:-}'
     ports:
       - '127.0.0.1:8081:8081'
     networks:
