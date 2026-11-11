@@ -23,7 +23,7 @@ public class FacultyOnboardingController {
     @PostMapping
     public FacultyOnboardingResponse onboard(
             Authentication authentication,
-            @Valid @RequestBody FacultyOnboardingRequest request){
+            @Valid @RequestBody FacultyOnboardingRequest request) {
         AuthenticatedUser user = authenticatedUserService.requireUser(authentication);
         var result = facultyOnboardingService.onboard(user, request);
         return result.response();
