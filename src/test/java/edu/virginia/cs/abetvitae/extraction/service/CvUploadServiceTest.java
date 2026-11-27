@@ -1,4 +1,5 @@
 package edu.virginia.cs.abetvitae.extraction.service;
+
 import edu.virginia.cs.abetvitae.account.model.RoleName;
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
 import edu.virginia.cs.abetvitae.account.repository.UserAccountRepository;
@@ -13,10 +14,10 @@ import edu.virginia.cs.abetvitae.extraction.storage.PrivateCvStorage;
 import edu.virginia.cs.abetvitae.extraction.storage.StoredCvFile;
 import edu.virginia.cs.abetvitae.faculty.model.Professor;
 import edu.virginia.cs.abetvitae.faculty.repository.ProfessorRepository;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -36,7 +37,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+
 class CvUploadServiceTest {
+
+    private static final CvUploadProperties UPLOAD_PROPERTIES =
+            new CvUploadProperties(10 * 1024 * 1024, Duration.ofDays(90));
 
     @Test
     void rejectsAdminWhenUploadingCv() {
@@ -75,7 +80,9 @@ class CvUploadServiceTest {
                 abetTemplateRepository,
                 facultyCycleRecordRepository,
                 privateCvStorage,
-                persistenceService
+                persistenceService,
+                new CvDocumentInspector(UPLOAD_PROPERTIES),
+                UPLOAD_PROPERTIES
         );
 
         assertThatThrownBy(() -> service.uploadCv(authentication, file))
@@ -96,8 +103,8 @@ class CvUploadServiceTest {
 
         assertThatThrownBy(() -> setup.service().uploadCv(
                 setup.authentication(), file))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Please select a file to upload.");
+                .isInstanceOf(CvUploadRejectedException.class)
+                .hasMessage("Please select a CV to upload.");
 
         verifyNoInteractions(setup.storage(), setup.persistenceService());
     }
@@ -112,8 +119,8 @@ class CvUploadServiceTest {
 
         assertThatThrownBy(() -> setup.service().uploadCv(
                 setup.authentication(), file))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("The uploaded file exceeds the 10 MB limit.");
+                .isInstanceOf(CvUploadRejectedException.class)
+                .hasMessage("The uploaded CV exceeds the configured size limit.");
 
         verifyNoInteractions(setup.storage(), setup.persistenceService());
     }
@@ -178,7 +185,9 @@ class CvUploadServiceTest {
                 abetTemplateRepository,
                 facultyCycleRecordRepository,
                 storage,
-                persistenceService
+                persistenceService,
+                new CvDocumentInspector(UPLOAD_PROPERTIES),
+                UPLOAD_PROPERTIES
         );
 
         return new TestSetup(
@@ -210,8 +219,8 @@ class CvUploadServiceTest {
 
         assertThatThrownBy(() -> setup.service().uploadCv(
                 setup.authentication(), file))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("The uploaded file does not appear to be a valid PDF.");
+                .isInstanceOf(CvUploadRejectedException.class)
+                .hasMessage("The filename extension does not match the uploaded document.");
 
         verifyNoInteractions(setup.storage(), setup.persistenceService());
     }
@@ -227,8 +236,8 @@ class CvUploadServiceTest {
 
         assertThatThrownBy(() -> setup.service().uploadCv(
                 setup.authentication(), file))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Only PDF and DOCX files are allowed.");
+                .isInstanceOf(CvUploadRejectedException.class)
+                .hasMessage("Only PDF and DOCX files are accepted.");
 
         verifyNoInteractions(setup.storage(), setup.persistenceService());
     }
@@ -306,7 +315,7 @@ class CvUploadServiceTest {
                 any()
         );
     }
-    
+
     private record TestSetup(
             CvUploadService service,
             Authentication authentication,

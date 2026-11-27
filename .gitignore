@@ -39,3 +39,6 @@ out/
 !.env.example
 
 .DS_Store
+
+# Local private CV storage
+private-cv-storage/

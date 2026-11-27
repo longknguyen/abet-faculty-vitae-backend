@@ -49,4 +49,58 @@ class ExtractionRunTest {
         assertThat(run.getStructuredOutput()).isNull();
         assertThat(run.getPayloadPurgedAt()).isEqualTo(purgedAt);
     }
+
+    @Test
+    void textExtractionLifecycleUsesSafeStateTransitions() {
+        ProcessingJob processingJob = new ProcessingJob();
+        Instant expiresAt = Instant.parse("2026-11-06T12:00:00Z");
+        Instant completedAt = Instant.parse("2026-11-05T12:00:00Z");
+        ExtractionRun run = ExtractionRun.start(
+                processingJob,
+                1,
+                expiresAt
+        );
+
+        run.completeTextExtraction("Extracted CV text", completedAt);
+
+        assertThat(run.getStatus()).isEqualTo(ExtractionRunStatus.SUCCEEDED);
+        assertThat(run.getExtractedText()).isEqualTo("Extracted CV text");
+        assertThat(run.getCompletedAt()).isEqualTo(completedAt);
+        assertThat(run.getPayloadExpiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
+    void mappingRecordsNonSecretParserAndMapperProvenance() {
+        ExtractionRun run = ExtractionRun.start(
+                new ProcessingJob(),
+                1,
+                Instant.parse("2026-11-06T12:00:00Z")
+        );
+        run.completeTextExtraction(
+                "Extracted CV text",
+                Instant.parse("2026-11-05T12:00:00Z")
+        );
+        JsonNode output = JsonNodeFactory.instance.objectNode()
+                .putArray("EDUCATION")
+                .add("PhD, Computer Science");
+
+        run.recordMapping(
+                output,
+                "isolated-parser-worker",
+                "application/pdf",
+                "heading-based",
+                "1",
+                null,
+                null,
+                Instant.parse("2026-11-05T12:00:01Z")
+        );
+
+        assertThat(run.getParserName()).isEqualTo("isolated-parser-worker");
+        assertThat(run.getParserMediaType()).isEqualTo("application/pdf");
+        assertThat(run.getMapperName()).isEqualTo("heading-based");
+        assertThat(run.getMapperVersion()).isEqualTo("1");
+        assertThat(run.getModelProvider()).isNull();
+        assertThat(run.getModelName()).isNull();
+        assertThat(run.getStructuredOutput()).isEqualTo(output);
+    }
 }

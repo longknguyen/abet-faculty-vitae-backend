@@ -1,4 +1,3 @@
-
 package edu.virginia.cs.abetvitae.extraction.service;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -12,6 +11,7 @@ import edu.virginia.cs.abetvitae.accreditation.repository.FacultyCycleRecordRepo
 import edu.virginia.cs.abetvitae.extraction.model.CvUpload;
 import edu.virginia.cs.abetvitae.extraction.model.ProcessingJob;
 import edu.virginia.cs.abetvitae.extraction.model.ProcessingJobStatus;
+import edu.virginia.cs.abetvitae.extraction.repository.CvProcessingOutboxRepository;
 import edu.virginia.cs.abetvitae.extraction.repository.CvUploadRepository;
 import edu.virginia.cs.abetvitae.extraction.repository.ProcessingJobRepository;
 import edu.virginia.cs.abetvitae.extraction.storage.StoredCvFile;
@@ -26,7 +26,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +63,12 @@ class CvUploadPersistenceServiceIntegrationTest {
     @Autowired
     private CvUploadRepository cvUploadRepository;
 
+    @Autowired
+    private CvProcessingOutboxRepository outboxRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @MockitoSpyBean
     private ProcessingJobRepository processingJobRepository;
 
@@ -75,7 +85,7 @@ class CvUploadPersistenceServiceIntegrationTest {
 
         Instant expiresAt = Instant.now().plusSeconds(90L * 24 * 60 * 60);
 
-        CvUpload savedUpload = persistenceService.saveUploadAndQueueJob(
+        CvUploadReceipt receipt = persistenceService.saveUploadAndQueueJob(
                 record,
                 record.getProfessor().getUserAccount(),
                 "resume.pdf",
@@ -84,11 +94,11 @@ class CvUploadPersistenceServiceIntegrationTest {
                 expiresAt
         );
 
-        CvUpload persistedUpload = cvUploadRepository.findById(savedUpload.getId())
+        CvUpload persistedUpload = cvUploadRepository.findById(receipt.uploadId())
                 .orElseThrow();
 
         ProcessingJob persistedJob = processingJobRepository
-                .findByCvUploadId(savedUpload.getId())
+                .findByCvUploadId(receipt.uploadId())
                 .orElseThrow();
 
         assertEquals("resume.pdf", persistedUpload.getOriginalFilename());
@@ -98,8 +108,58 @@ class CvUploadPersistenceServiceIntegrationTest {
         );
         assertEquals(expiresAt, persistedUpload.getExpiresAt());
 
-        assertEquals(savedUpload.getId(), persistedJob.getCvUpload().getId());
+        assertEquals(receipt.processingJobId(), persistedJob.getId());
+        assertEquals(receipt.uploadId(), persistedJob.getCvUpload().getId());
         assertEquals(ProcessingJobStatus.QUEUED, persistedJob.getStatus());
+        assertEquals(1, countOutboxEntries(persistedJob.getId()));
+    }
+
+    @Test
+    @Transactional
+    void migrationEnqueuesExistingUnexpiredJobsOnce() {
+        FacultyCycleRecord record = createFacultyCycleRecord();
+        CvUploadReceipt unexpired = saveLegacyUpload(record);
+        CvUploadReceipt expired = saveLegacyUpload(record);
+        jdbcTemplate.update("""
+                UPDATE cv_upload
+                SET uploaded_at = CURRENT_TIMESTAMP - INTERVAL '2 days',
+                    expires_at = CURRENT_TIMESTAMP - INTERVAL '1 day'
+                WHERE id = ?
+                """, expired.uploadId());
+
+        ClassPathResource migration = new ClassPathResource(
+                "db/migration/V9__enqueue_existing_cv_jobs.sql"
+        );
+        jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
+            ScriptUtils.executeSqlScript(connection, migration);
+            ScriptUtils.executeSqlScript(connection, migration);
+            return null;
+        });
+
+        assertEquals(1, countOutboxEntries(unexpired.processingJobId()));
+        assertEquals(0, countOutboxEntries(expired.processingJobId()));
+    }
+
+    private CvUploadReceipt saveLegacyUpload(FacultyCycleRecord record) {
+        CvUploadReceipt receipt = persistenceService.saveUploadAndQueueJob(
+                record,
+                record.getProfessor().getUserAccount(),
+                "resume.pdf",
+                "application/pdf",
+                new StoredCvFile(UUID.randomUUID().toString(), 1024, "a".repeat(64)),
+                Instant.now().plusSeconds(3600)
+        );
+        jdbcTemplate.update(
+                "DELETE FROM cv_processing_outbox WHERE processing_job_id = ?",
+                receipt.processingJobId()
+        );
+        return receipt;
+    }
+
+    private long countOutboxEntries(UUID jobId) {
+        return outboxRepository.findAll().stream()
+                .filter(message -> message.getProcessingJob().getId().equals(jobId))
+                .count();
     }
 
     @Test

@@ -1,6 +1,7 @@
 package edu.virginia.cs.abetvitae.review.model;
 
 import edu.virginia.cs.abetvitae.account.model.UserAccount;
+import edu.virginia.cs.abetvitae.accreditation.model.FacultyCycleRecord;
 import edu.virginia.cs.abetvitae.extraction.model.ExtractionRun;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -43,6 +44,10 @@ public class ExtractionReview {
     private ExtractionRun extractionRun;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "faculty_cycle_record_id", nullable = false)
+    private FacultyCycleRecord facultyCycleRecord;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "reviewed_by_user_id", nullable = false)
     private UserAccount reviewedByUser;
 
@@ -64,4 +69,18 @@ public class ExtractionReview {
     @Version
     @Column(name = "lock_version", nullable = false)
     private long lockVersion;
+
+    public static ExtractionReview createDraft(
+            ExtractionRun extractionRun,
+            FacultyCycleRecord facultyCycleRecord,
+            UserAccount reviewedByUser
+    ) {
+        ExtractionReview review = new ExtractionReview();
+        review.extractionRun = java.util.Objects.requireNonNull(extractionRun);
+        review.facultyCycleRecord = java.util.Objects.requireNonNull(
+                facultyCycleRecord
+        );
+        review.reviewedByUser = java.util.Objects.requireNonNull(reviewedByUser);
+        return review;
+    }
 }

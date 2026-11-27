@@ -6,6 +6,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,7 +34,8 @@ class SupabasePrivateCvStorageIntegrationTest {
                         supabaseUrl,
                         secretKey,
                         bucketName,
-                        HttpClient.newHttpClient()
+                        HttpClient.newHttpClient(),
+                        Duration.ofSeconds(15)
                 );
 
         byte[] fileBytes =

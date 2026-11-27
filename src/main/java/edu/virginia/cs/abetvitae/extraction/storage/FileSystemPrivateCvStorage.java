@@ -3,7 +3,10 @@ package edu.virginia.cs.abetvitae.extraction.storage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
@@ -11,6 +14,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.UUID;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 
 public final class FileSystemPrivateCvStorage implements PrivateCvStorage {
     private final Path storageDirectory;
@@ -66,9 +70,15 @@ public final class FileSystemPrivateCvStorage implements PrivateCvStorage {
         long totalBytes = 0;
         byte[] buffer = new byte[8192];
 
+        Files.createFile(
+                target,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")
+                )
+        );
         try (OutputStream outputStream = Files.newOutputStream(
                 target,
-                StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.TRUNCATE_EXISTING,
                 StandardOpenOption.WRITE
         )) {
             int bytesRead;
@@ -101,7 +111,36 @@ public final class FileSystemPrivateCvStorage implements PrivateCvStorage {
     }
 
     @Override
+    public long copyTo(
+            String storageKey,
+            OutputStream outputStream,
+            long maximumBytes
+    ) throws IOException {
+        Path target = resolveStorageKey(storageKey);
+        if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Stored CV could not be found");
+        }
+
+        Set<java.nio.file.OpenOption> options = Set.of(
+                StandardOpenOption.READ,
+                LinkOption.NOFOLLOW_LINKS
+        );
+        try (SeekableByteChannel channel = Files.newByteChannel(target, options);
+             InputStream inputStream = Channels.newInputStream(channel)) {
+            return StorageTransfer.copy(
+                    inputStream,
+                    outputStream,
+                    maximumBytes
+            );
+        }
+    }
+
+    @Override
     public void delete(String storageKey) throws IOException {
+        Files.deleteIfExists(resolveStorageKey(storageKey));
+    }
+
+    private Path resolveStorageKey(String storageKey) throws IOException {
         if (storageKey == null || !storageKey.matches("[a-f0-9-]{36}")) {
             throw new IOException("Invalid storage key");
         }
@@ -111,7 +150,6 @@ public final class FileSystemPrivateCvStorage implements PrivateCvStorage {
         if (!storageDirectory.equals(target.getParent())) {
             throw new IOException("Invalid storage path");
         }
-
-        Files.deleteIfExists(target);
+        return target;
     }
 }
